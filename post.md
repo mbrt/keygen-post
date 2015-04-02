@@ -58,8 +58,9 @@ By looking at the cross references of `license_unk3` we can see that it does not
 
 We can now open one function at a time, and do the following operations:
 * rename the known first parameter to be `dSerialNumber`;
-* rename the function to `license_unkN` if it is clearly playing with license data;
-* than we can update our proximity view, adding these new functions.
+* rename the function to `license_unkN` if it is clearly playing with license data.
+
+The result of this process it that we have discovered other XXXX functions and the global variable `dword_156CFCC`, that is used as `dSerialNumber` parameter for `license_unk2`. Let's rename it to `gdSerialNumber`: a global variable retaining the serial number seems very useful (at least to me :) ).
 
 ## Getting acquainted
 Having the hands on the main data and functions that manipulate serial number, customer number and mail address, we can organize the high level workflow in IDA, by using the really useful proximity browser.
