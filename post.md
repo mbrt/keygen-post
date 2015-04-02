@@ -12,11 +12,45 @@ First of all I needed a big picture of the software, so I opened the installatio
 
 * `license_loadRegistration` is the function that loads registration information from registry.
 
-![around loadRegistration](https://github.com/michele-bertasi/keygen-post/raw/master/1_around_load_registration.png)
-
 Immediately after the place where this funciton gets called, there is another interesting call, that takes `dcustomerNumber`, `dSerialNumber` and `lpMail` parameters. We can rename this function to `license_unk1`, waiting for a better name. It is always useful to rename things, even if your information is partial, because even if we don't know now what this function does, we at least know that it is playing with the license.
 
+![around loadRegistration](https://github.com/michele-bertasi/keygen-post/raw/master/1_around_load_registration.png)
+
+Here is the proxymiti view of the just discovered funcion:
+
 ![license_unk1 proximity](https://github.com/michele-bertasi/keygen-post/raw/master/2_license_unk1_proximity.png)
+
+There are two functions called by `license_unk1`; let's see in what way they are used, by looking at the decompiled version of `license_unk1`:
+
+```C
+int __cdecl license_unk1(int dSerialNumber, int dCustomerNumber, char *lpMail)
+{
+  int v3; // eax@3
+  int result; // eax@4
+  int v5; // [sp+4h] [bp-Ch]@1
+  int v6; // [sp+8h] [bp-8h]@1
+  int v7; // [sp+Ch] [bp-4h]@1
+
+  v5 = 0;
+  v7 = 0;
+  v6 = 0;
+  if ( sub_4591F0(dSerialNumber, &v5, &v7, (int)&v6) && v5 == 4 )
+  {
+    v3 = sub_458FB0(dSerialNumber, lpMail);
+    if ( v3 == dCustomerNumber )
+      result = 3;
+    else
+      result = 2 - ((unsigned __int16)(dCustomerNumber ^ (unsigned __int16)v3) != 0);
+  }
+  else
+  {
+    result = 0;
+  }
+  return result;
+}
+```
+
+Easy peasy, they are interesting by definition, because they take the serial number and the mail parameters. We can also rename them to `license_unk2` and `license_unk3`. We can go fast at this stage, because we don't need to understand everything; we have to collect data and functions that plays with the license.
 
 ## Getting acquainted
 Having the hands on the main data and functions that manipulate serial number, customer number and mail address, we can organize the high level workflow in IDA, by using the really useful proximity browser.
