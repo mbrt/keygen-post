@@ -52,5 +52,14 @@ int __cdecl license_unk1(int dSerialNumber, int dCustomerNumber, char *lpMail)
 
 Easy peasy, they are interesting by definition, because they take the serial number and the mail parameters. We can also rename them to `license_unk2` and `license_unk3`. We can go fast at this stage, because we don't need to understand everything; we have to collect data and functions that plays with the license.
 
+By looking at the cross references of `license_unk3` we can see that it does not call other functions and it is not called by other functions than `license_unk1`, so let's skip to `license_unk2` for now:
+
+![license_unk2 xrefs](https://github.com/michele-bertasi/keygen-post/raw/master/3_license_unk2_xrefs.png)
+
+We can now open one function at a time, and do the following operations:
+* rename the known first parameter to be `dSerialNumber`;
+* rename the function to `license_unkN` if it is clearly playing with license data;
+* than we can update our proximity view, adding these new functions.
+
 ## Getting acquainted
 Having the hands on the main data and functions that manipulate serial number, customer number and mail address, we can organize the high level workflow in IDA, by using the really useful proximity browser.
