@@ -62,5 +62,17 @@ We can now open one function at a time, and do the following operations:
 
 The result of this process it that we have discovered other 7 functions and the global variable `dword_156CFCC`, that is used as `dSerialNumber` parameter for `license_unk2`. Let's rename it to `gdSerialNumber`: a global variable retaining the serial number seems very useful :).
 
+We can continue our high level analysis by looking at cross references to the `gdSerialNumber`, shown in the next figure:
+
+![gdSerialNumber xrefs](https://github.com/michele-bertasi/keygen-post/raw/master/5_gdSerialNumber_xrefs.png)
+
+As you can see some functions are already marked as `license_unkXX` and some other are new.
+
+To discover more functions involved we can use even another trick. As compilers tend to group function addresses by translation unit (i.e. the functions of one ".cpp" file have similar addresses), we can look for other licensing functions assuming they are compiled in few translation units (and not scattered around the executable).
+
+To do this, we can examine the **function window**, ordering functions by start address. You can see that some of our functions are really close together. We can also look at the functions between them, seeking for more information.
+
+![lic funcs address proximity](https://github.com/michele-bertasi/keygen-post/raw/master/6_lic_funcs_code_proximity.png)
+
 ## Getting acquainted
 Having the hands on the main data and functions that manipulate serial number, customer number and mail address, we can organize the high level workflow in IDA, by using the really useful proximity browser.
