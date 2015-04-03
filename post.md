@@ -74,5 +74,13 @@ To do this, we can examine the **function window**, ordering functions by start 
 
 ![lic funcs address proximity](https://github.com/michele-bertasi/keygen-post/raw/master/6_lic_funcs_code_proximity.png)
 
+This iterative process goes on and on, until all interesting functions has been put in our bag, and all the variables manipulating license data (global or local) has been renamed.
+
 ## Getting acquainted
 Having the hands on the main data and functions that manipulate serial number, customer number and mail address, we can organize the high level workflow in IDA, by using the really useful proximity browser.
+
+Here you can see all the discovered functions within their call graph. The purpose of this view is to highlight the most important functions, that, as you can see are `license_unk2` and `license_unk13`, by the number of incoming edges.
+
+![lic funcs proximity](https://github.com/michele-bertasi/keygen-post/raw/master/7_license_proximity.png)
+
+Let's try to understand `license_unk2`, by looking at its decompiled version:
