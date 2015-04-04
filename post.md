@@ -77,10 +77,61 @@ To do this, we can examine the **function window**, ordering functions by start 
 This iterative process goes on and on, until all interesting functions has been put in our bag, and all the variables manipulating license data (global or local) has been renamed.
 
 ## Getting acquainted
-Having the hands on the main data and functions that manipulate serial number, customer number and mail address, we can organize the high level workflow in IDA, by using the really useful proximity browser.
+Having the hands on main data and functions manipulating serial number, customer number and mail address, we can organize the high level workflow in IDA, by using the really useful proximity browser.
 
-Here you can see all the discovered functions within their call graph. The purpose of this view is to highlight the most important functions, that, as you can see are `license_unk2` and `license_unk13`, by the number of incoming edges.
+Here you can see all the discovered functions within their call graph. The purpose of this view is to highlight the most important functions and their interactions. For example we can see that `license_unk2` and `license_unk13`, have an higher number of incoming edges.
 
 ![lic funcs proximity](https://github.com/michele-bertasi/keygen-post/raw/master/7_license_proximity.png)
 
 Let's try to understand `license_unk2`, by looking at its decompiled version:
+
+```C
+signed int __cdecl license_unk2(int dSerialNumber, int *a2, int *a3, int *a4)
+{
+  signed int result; // eax@2
+  char v5; // cl@3
+  int v6; // edi@3
+  int v7; // ebp@3
+  int v8; // esi@3
+  int v9; // edi@3
+  int v10; // eax@20
+  int v11; // edx@34
+  int v12; // ecx@34
+
+  if ( dSerialNumber == dword_1BB4294 )
+  {
+    result = dword_1BB42A4;
+    *a2 = dword_1BB42A4 != 0 ? dword_1BB4298 : 0;
+    *a3 = result != 0 ? dword_1BB429C : 0;
+    *a4 = result != 0 ? dword_1BB42A0 : 0;
+    return result;
+  }
+  *a2 = 0;
+  *a3 = 0;
+  v5 = dSerialNumber ^ ((dSerialNumber >> 16) - BYTE1(dSerialNumber));
+  *a4 = 0;
+  v6 = (unsigned __int8)(dSerialNumber ^ (unsigned __int8)(BYTE1(dSerialNumber) - v5));
+  v7 = v6 ^ (unsigned __int8)(dSerialNumber - v5);
+  v8 = (v6 | ((unsigned __int8)(dSerialNumber ^ (unsigned __int8)((dSerialNumber >> 16) - BYTE1(dSerialNumber))) << 8)) << 16;
+  dword_1BB4294 = dSerialNumber;
+  dword_1BB42A4 = 0;
+  v9 = BYTE3(dSerialNumber);
+  if ( BYTE3(dSerialNumber) )
+    v9 = BYTE3(dSerialNumber) ^ 0x55;
+  if ( v8 > (unsigned int)_time64(0) + 172800
+    || v9 && v9 != 80 && v9 != 81 && v9 != 82 && v9 != 83 && v9 != 84 && v9 != 86 )
+    return 0;
+  if ( v7 == 237 )
+  {
+/*
+... the function continue with other computations ...
+I've skipped them for brevity
+*/
+  }
+  return 0;
+}
+```
+
+The first block of code checks if the given serial number is equal to the one saved in the global variable `dword_1BB4294 `. If so, it sets its arguments (that are output arguments) to the value of other global variables. This is basically caching the result of the function, in case the same argument is given multiple times, so it seems a performance optimization. After the first block, computations on the serial number and checks are performed and an integer result is returned. This is clearly a validation of the serial number alone, since it is the only parameter given to the function.
+
+OK, instead of struggling inside this function, let's check some of its usages, to understand the meaning of the result and the output arguments.
