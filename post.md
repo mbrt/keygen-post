@@ -84,7 +84,6 @@ Here you can see all the discovered functions within their call graph. The purpo
 ![lic funcs proximity](https://github.com/michele-bertasi/keygen-post/raw/master/7_license_proximity.png)
 
 Let's try to understand `license_unk2`, by looking at its decompiled version:
-
 ```C
 signed int __cdecl license_unk2(int dSerialNumber, int *a2, int *a3, int *a4)
 {
@@ -135,3 +134,53 @@ I've skipped them for brevity
 The first block of code checks if the given serial number is equal to the one saved in the global variable `dword_1BB4294 `. If so, it sets its arguments (that are output arguments) to the value of other global variables. This is basically caching the result of the function, in case the same argument is given multiple times, so it seems a performance optimization. After the first block, computations on the serial number and checks are performed and an integer result is returned. This is clearly a validation of the serial number alone, since it is the only parameter given to the function.
 
 OK, instead of struggling inside this function, let's check some of its usages, to understand the meaning of the result and the output arguments.
+
+Example 1:
+```C
+result1 = license_unk2(dSerialNumber, &v6, &v7, a1);
+if ( result1 )
+{
+  result1 = v6;
+  // computations here on result and v6, v7
+  /* [...] */
+}
+return result1;
+```
+
+This seems suggesting that a `result1 == 0` is a bad result, since it is immediately returned.
+
+Example 2:
+```C
+if ( !gdSerialNumber || (v16 = 0, !license_unk2(gdSerialNumber, &v17, &v18, (int *)&v16)) )
+  return 0;
+/* [...] */
+```
+
+Again an early return if the result is 0. And so on... So, 0 is a bad result.
+
+Example 3:
+```C
+return license_unk13()
+    || license_unk6() <= 2
+    && (v2 = 0, license_unk2(gdSerialNumber, (int *)&v4, (int *)&v3, (int *)&v2),
+                v1 = sub_431FB0("113 9 28"),
+                v2 >= v1);
+```
+
+Here the last parameter is compared against a value returned from `sub_431FB0`. Let's check this function:
+```C
+__time64_t __cdecl sub_431FB0(const char *a1)
+{
+  struct tm Tm; // [sp+0h] [bp-28h]@1
+
+  sscanf(a1, "%d %d %d", &Tm.tm_year, &Tm.tm_mon, &Tm.tm_mday);
+  --Tm.tm_mon;
+  Tm.tm_hour = 0;
+  Tm.tm_min = 0;
+  Tm.tm_sec = 0;
+  Tm.tm_isdst = -1;
+  return _mktime64(&Tm);
+}
+```
+
+OK, it is basically building a `time64` value from a string composed by three integers separated by a space, representing a year, a month and a day. Let's rename this function to `time_from_yy_mm_dd`. The previous call to the function is building the date 28 October 2013 (see [`struct tm` documentation](http://www.cplusplus.com/reference/ctime/tm/)). So, the last parameter is a date, represented by a `time64` value. Let's rename the last parameter to `date` since we don't already know if it is an expiration or a start date.
