@@ -8,9 +8,9 @@ In this post we are going to take a look at the steps I followed to understand h
 ## First approach
 First of all I needed a big picture of the software, so I opened the installation folder. I was a bit surprised to find a single x86 executable of 12 MB.
 
-** ... here goes some intro on how the software is made ... **
+**... here goes some intro on how the software is made ...**
 
-** .. here goes some info on how to find the first function manipulating the serial number ... **
+**.. here goes some info on how to find the first function manipulating the serial number ...**
 
 * `license_loadRegistration` is the function that loads registration information from registry.
 
