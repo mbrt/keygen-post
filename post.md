@@ -186,3 +186,29 @@ __time64_t __cdecl sub_431FB0(const char *a1)
 ```
 
 OK, it is basically building a `time64` value from a string composed by three integers separated by a space, representing a year, a month and a day. Let's rename this function to `time_from_yy_mm_dd`. The previous call to the function is building the date 28 October 2013 (see [`struct tm` documentation](http://www.cplusplus.com/reference/ctime/tm/)). So, the last parameter is a date, represented by a `time64` value. Let's rename the last parameter to `date` since we don't already know if it is an expiration or a start date.
+
+Let's review the callers for these functions, in order to reconstruct the algorithm. We started with `license_loadRegistration`, so let's check its caller, that is `license_unk11`. The caller for this function is a very long function that does many things. I've called it `mainFlow`. Let's check the chunk that we are interested in:
+
+```C
+license_unk11((int)byte_B684E8);
+if ( !license_unk13() )
+{
+  serialNumber = 0;
+  customerNumber = 0;
+  szMail[0] = 0;
+  memset(&szMail[1], 0, 0xFFu);
+  license_copyFromGlobal(&serialNumber, &customerNumber, szMail);
+  if ( serialNumber )
+  {
+    if ( customerNumber && szMail[0] )
+    {
+      if ( license_unk17(serialNumber, szMail) )
+        license_unk10(szMail, serialNumber, (int)&dword_B0B000);
+      else
+        license_unk12(0, 0, (char *)&byte_91F2BE);
+    }
+  }
+}
+```
+
+We need to use an iterative process on the functions called here, to understand the high level flow.
