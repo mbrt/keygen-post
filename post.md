@@ -233,18 +233,18 @@ v2 = -1;
 /* [...] */
 do
 {
-  license_loadRegistration((const char *)v4, &dSerialNumber1, &dCustomerNumber, lpStrMail);
-  i = license_unk1(dSerialNumber1, dCustomerNumber, lpStrMail);
-  if ( v2 < i )                             // result > -1
+  license_loadFromRegistry((const char *)v4, &dSerialNumber1, &dCustomerNumber, lpStrMail);
+  v5 = license_unk1(dSerialNumber1, dCustomerNumber, lpStrMail);
+  if ( largestResult < v5 )
   {
-    v2 = i;
+    largestResult = v5;
     gdSerialNumber = dSerialNumber1;
     gdCustomerNumber = dCustomerNumber;
-    i = 0;
+    v6 = 0;
     do                                      // strncpy
     {
-      currChar = lpStrMail[i];
-      gszMail[i++] = currChar;
+      currChar = lpStrMail[v6];
+      gszMail[v6++] = currChar;
     }
     while ( currChar );
   }
@@ -254,4 +254,4 @@ do
 while ( v3 < dword_156CFC8 );
 ```
 
-TODO: meaning of `i`
+We can see that `i` is initialized with 1 or 2 depending on the os version. Then, the largest result of `license_unk1` is kept, and the license data saved to global variables (`gdSerialNumber`, `gdCustomerNumber` and `gszMail`). The process is repeated one or two times, depending on `dword_156CFC8`. This suggests me that the licence can be saved in two formats, the old one for OS prior than Vista, the new one for Vista onward.
