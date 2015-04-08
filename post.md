@@ -193,17 +193,17 @@ Let's review the callers for these functions, in order to reconstruct the algori
 license_unk11((int)byte_B684E8);
 if ( !license_unk13() )
 {
-  serialNumber = 0;
-  customerNumber = 0;
+  dserialNumber = 0;
+  dcustomerNumber = 0;
   szMail[0] = 0;
   memset(&szMail[1], 0, 0xFFu);
-  license_copyFromGlobal(&serialNumber, &customerNumber, szMail);
-  if ( serialNumber )
+  license_copyFromGlobal(&dserialNumber, &dcustomerNumber, szMail);
+  if ( dserialNumber )
   {
-    if ( customerNumber && szMail[0] )
+    if ( dcustomerNumber && szMail[0] )
     {
-      if ( license_unk17(serialNumber, szMail) )
-        license_unk10(szMail, serialNumber, (int)&dword_B0B000);
+      if ( license_unk17(dserialNumber, szMail) )
+        license_unk10(szMail, dserialNumber, (int)&dword_B0B000);
       else
         license_unk12(0, 0, (char *)&byte_91F2BE);
     }
@@ -212,3 +212,46 @@ if ( !license_unk13() )
 ```
 
 We need to use an iterative process on the functions called here, to understand the high level flow.
+
+In `license_unk11` there is this check:
+
+```C
+// as before, the code is simplified, by removing unnecessary parts
+if ( (unsigned __int8)GetVersion() < 6u )     // 6.0 is Windows Vista
+{
+  i = 1;
+  /* [...] */
+}
+else
+{
+  i = 2;
+  /* [...] */
+}
+dword_156CFC8 = i;
+v3 = 0;
+v2 = -1;
+/* [...] */
+do
+{
+  license_loadRegistration((const char *)v4, &dSerialNumber1, &dCustomerNumber, lpStrMail);
+  i = license_unk1(dSerialNumber1, dCustomerNumber, lpStrMail);
+  if ( v2 < i )                             // result > -1
+  {
+    v2 = i;
+    gdSerialNumber = dSerialNumber1;
+    gdCustomerNumber = dCustomerNumber;
+    i = 0;
+    do                                      // strncpy
+    {
+      currChar = lpStrMail[i];
+      gszMail[i++] = currChar;
+    }
+    while ( currChar );
+  }
+  ++v3;
+  v4 += 128;
+}
+while ( v3 < dword_156CFC8 );
+```
+
+TODO: meaning of `i`
