@@ -20,3 +20,43 @@ Let me skip the first part, since it is not very interesting. You can find many 
 
 ## Big picture
 When I collected the most interesting functions, I tried to understand the high level flow and the simpler functions.
+
+```C
+// this is an overview on how the serial number is checked
+
+enum {
+    ERROR,
+    STANDARD,
+    PRO
+} license_type = ERROR;
+enum {
+    INVALID,
+    VALID,
+    VALID_IF_LAST_VERSION
+} result_t;
+enum { HEADER_SIZE = 8192 };
+struct {
+    int header[HEADER_SIZE];
+    int data[1000000];
+} mail_digest_table;
+
+
+result_t check_registration(int serial, int customer_num, const char* mail) {
+    // validate serial number
+    license_type = get_license_type(serial);
+    if (license_type == ERROR) return INVALID;
+    
+    // validate customer number
+    int expected_customer = compute_customer_number(serial, mail);
+    if (expected_customer != customer_num) return INVALID;
+    
+    // validate w.r.t. known registrations
+    int index = get_index_in_mail_table(serial);
+    if (index > HEADER_SIZE) return VALID_IF_LAST_VERSION;
+    int serial_mail_digest = mail_digest_table[index];
+    int mail_digest = compute_mail_digest(mail);
+    if (serial_mail_digest != mail_digest) return INVALID;
+    
+    return VALID;
+}
+```
