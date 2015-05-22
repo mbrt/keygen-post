@@ -19,29 +19,34 @@ Let me skip the first part, since it is not very interesting. You can find many 
 * validate your beliefs with the debugger if possible. For example, if you think a variable contains the serial, break with the debugger and see if it is the case.
 
 ## Big picture
-When I collected the most interesting functions, I tried to understand the high level flow and the simpler functions.
+When I collected the most interesting functions, I tried to understand the high level flow and the simpler functions. Here is a pseudo-C version of what I understood in the registration process:
 
 ```C
-// this is an overview on how the serial number is checked
-
+// base enums and data structures
+//
+// this is a global variable providing the type of the license, used to enable
+// and disable features
 enum {
     ERROR,
     STANDARD,
     PRO
 } license_type = ERROR;
-enum {
+// the result of the check is one of these values
+enum result_t {
     INVALID,
     VALID,
-    VALID_IF_LAST_VERSION
-} result_t;
+    VALID_IF_LAST_VERSION  // see below for this strange value
+};
+// this is a data structure, containing the digest of all the mail addresses of
+// registered users. This is a pretty big file embedded in the executable itself (!!)
 enum { HEADER_SIZE = 8192 };
 struct {
     int header[HEADER_SIZE];
     int data[1000000];
 } mail_digest_table;
 
-
-result_t check_registration(int serial, int customer_num, const char* mail) {
+// pseudo code of the registration check
+enum result_t check_registration(int serial, int customer_num, const char* mail) {
     // validate serial number
     license_type = get_license_type(serial);
     if (license_type == ERROR) return INVALID;
