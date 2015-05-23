@@ -19,33 +19,38 @@ Let me skip the first part, since it is not very interesting. You can find many 
 * validate your beliefs with the debugger if possible. For example, if you think a variable contains the serial, break with the debugger and see if it is the case.
 
 ## Big picture
-When I collected the most interesting functions, I tried to understand the high level flow and the simpler functions. Here is a pseudo-C version of what I understood in the registration process:
+When I collected the most interesting functions, I tried to understand the high level flow and the simpler functions. Here is the main variables and types used in the validation process. As a note for the reader: most of them has been actually purged from uninteresting details.
 
 ```C
-// base enums and data structures
-//
-// this is a global variable providing the type of the license, used to enable
-// and disable features
 enum {
     ERROR,
     STANDARD,
     PRO
 } license_type = ERROR;
-// the result of the check is one of these values
+```
+Here we have a global variable providing the type of the license, used to enable and disable features of the application.
+
+```
 enum result_t {
     INVALID,
     VALID,
-    VALID_IF_LAST_VERSION  // see below for this strange value
+    VALID_IF_LAST_VERSION
 };
-// this is a data structure, containing the digest of all the mail addresses of
-// registered users. This is a pretty big file embedded in the executable itself (!!)
+```
+This is a convenient `enum` used as a result for the validation. `INVALID` and `VALID` values are pretty self-explanatory.  `VALID_IF_LAST_VERSION` tells that this registration is valid only if the current software version is the last available. The reasons for this strange possibility will be clear shortly.
+
+```
 enum { HEADER_SIZE = 8192 };
 struct {
     int header[HEADER_SIZE];
     int data[1000000];
 } mail_digest_table;
+```
+This is a data structure, containing digests of mail addresses of
+known registered users. This is a pretty big file embedded in the executable itself. During startup, a resource is extracted in a temporary file and its contents copied into this struct. Each element of the `header` vector is an offset pointing inside the `data` vector.
 
-// pseudo code of the registration check
+Here we have a pseudo-C code for the registration check, that uses data types and variables explained above:
+```
 enum result_t check_registration(int serial, int customer_num, const char* mail) {
     // validate serial number
     license_type = get_license_type(serial);
