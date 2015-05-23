@@ -54,19 +54,23 @@ Here we have a pseudo-C code for the registration check, that uses data types an
 enum result_t check_registration(int serial, int customer_num, const char* mail) {
     // validate serial number
     license_type = get_license_type(serial);
-    if (license_type == ERROR) return INVALID;
+    if (license_type == ERROR)
+        return INVALID;
     
     // validate customer number
     int expected_customer = compute_customer_number(serial, mail);
-    if (expected_customer != customer_num) return INVALID;
+    if (expected_customer != customer_num)
+        return INVALID;
     
     // validate w.r.t. known registrations
     int index = get_index_in_mail_table(serial);
-    if (index > HEADER_SIZE) return VALID_IF_LAST_VERSION;
-    int serial_mail_digest = mail_digest_table[index];
+    if (index > HEADER_SIZE)
+        return VALID_IF_LAST_VERSION;
     int mail_digest = compute_mail_digest(mail);
-    if (serial_mail_digest != mail_digest) return INVALID;
-    
-    return VALID;
+    for (int i = 0; i < 3; ++i) {
+        if (mail_digest_table[index + i] == mail_digest)
+            return VALID;
+    }
+    return INVALID;
 }
 ```
