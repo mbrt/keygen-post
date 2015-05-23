@@ -74,3 +74,38 @@ enum result_t check_registration(int serial, int customer_num, const char* mail)
     return INVALID;
 }
 ```
+
+The validation is divided in three main parts:
+* serial number must be valid by itself;
+* serial number, combined with mail address have to correspond to the actual customer number;
+* there have to be a correspondence between serial number and mail address, stored in a static table in the binary.
+
+The last point is a little bit unusual. Let me restate it in this way: whenever a customer buy the software, the customer table gets updated with its data and become available in the *next* version of the software (because it is embedded in the binary and not downloaded trough the internet). This explains the `VALID_IF_LAST_VERSION` check: if you buy the software today, the current version does not contain your data.
+
+```
+switch (check_registration(serial, customer, mail) {
+case VALID:
+    // the registration is OK! activate functionalities
+    activate_pro_functionality();
+    break;
+case VALID_IF_LAST_VERSION:
+    {
+        // check if the current version is the last
+        // using the internet.
+        int current_version = get_current_version();
+        int last_version = get_last_version();
+        if (current_version == last_version)
+            // OK for now: a new version is not available
+            activate_pro_functionality();
+        else
+            // else, force the user to download the new version
+            // before proceed
+            ask_download();
+    }
+    break;
+case INVALID:
+    // registration is not valid
+    handle_invalid_registration();
+    break;
+}
+```
