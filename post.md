@@ -30,7 +30,7 @@ enum {
 ```
 Here we have a global variable providing the type of the license, used to enable and disable features of the application.
 
-```
+```C
 enum result_t {
     INVALID,
     VALID,
@@ -39,7 +39,7 @@ enum result_t {
 ```
 This is a convenient `enum` used as a result for the validation. `INVALID` and `VALID` values are pretty self-explanatory.  `VALID_IF_LAST_VERSION` tells that this registration is valid only if the current software version is the last available. The reasons for this strange possibility will be clear shortly.
 
-```
+```C
 enum { HEADER_SIZE = 8192 };
 struct {
     int header[HEADER_SIZE];
@@ -50,7 +50,7 @@ This is a data structure, containing digests of mail addresses of
 known registered users. This is a pretty big file embedded in the executable itself. During startup, a resource is extracted in a temporary file and its contents copied into this struct. Each element of the `header` vector is an offset pointing inside the `data` vector.
 
 Here we have a pseudo-C code for the registration check, that uses data types and variables explained above:
-```
+```C
 enum result_t check_registration(int serial, int customer_num, const char* mail) {
     // validate serial number
     license_type = get_license_type(serial);
@@ -80,9 +80,9 @@ The validation is divided in three main parts:
 * serial number, combined with mail address have to correspond to the actual customer number;
 * there have to be a correspondence between serial number and mail address, stored in a static table in the binary.
 
-The last point is a little bit unusual. Let me restate it in this way: whenever a customer buy the software, the customer table gets updated with its data and become available in the *next* version of the software (because it is embedded in the binary and not downloaded trough the internet). This explains the `VALID_IF_LAST_VERSION` check: if you buy the software today, the current version does not contain your data.
+The last point is a little bit unusual. Let me restate it in this way: whenever a customer buy the software, the customer table gets updated with its data and become available in the *next* version of the software (because it is embedded in the binary and not downloaded trough the internet). This explains the `VALID_IF_LAST_VERSION` check: if you buy the software today, the current version does not contain your data. You are still allowed to get a "pro" version until a new version is released. In that moment you are forced to update to that new version, so the software can verify your registration with the updated table. Here is a pseudo-code of that check:
 
-```
+```C
 switch (check_registration(serial, customer, mail) {
 case VALID:
     // the registration is OK! activate functionalities
@@ -90,7 +90,7 @@ case VALID:
     break;
 case VALID_IF_LAST_VERSION:
     {
-        // check if the current version is the last
+        // check if the current version is the last, by
         // using the internet.
         int current_version = get_current_version();
         int last_version = get_last_version();
@@ -109,3 +109,10 @@ case INVALID:
     break;
 }
 ```
+
+The version check is done by making an HTTP request to a specific page that returns a page having only the last version number of the software. Don't ask me why the protection is not completely server side but involves static tables, version checks and things like that. I don't know!
+
+Anyway, this is the big picture of the registration validation functions, and this is pretty boring. Let's move on to the interesting part. You may notice that I provided code for the main procedure, but not for the helper functions like `get_license_type`, `compute_customer_number`, and so on. This is because I did not have to reverse them. They contains a lot of arithmetical and logical operations on registration data, and they are very difficult to understand. The good news is that we do not have to understand, we need only to reverse them!
+
+## KLEE
+KLEE is a symbolic virtual machine that operates on [LLVM](http://llvm.org/) byte code, used for software verification purposes. KLEE is capable to automatically generate tests that achieve high coverage on programs. To do that, we need to provide an LLVM byte code version of the program, symbolic variables and assertions.
