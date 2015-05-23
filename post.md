@@ -115,4 +115,41 @@ The version check is done by making an HTTP request to a specific page that retu
 Anyway, this is the big picture of the registration validation functions, and this is pretty boring. Let's move on to the interesting part. You may notice that I provided code for the main procedure, but not for the helper functions like `get_license_type`, `compute_customer_number`, and so on. This is because I did not have to reverse them. They contains a lot of arithmetical and logical operations on registration data, and they are very difficult to understand. The good news is that we do not have to understand, we need only to reverse them!
 
 ## KLEE
-KLEE is a symbolic virtual machine that operates on [LLVM](http://llvm.org/) byte code, used for software verification purposes. KLEE is capable to automatically generate tests that achieve high coverage on programs. To do that, we need to provide an LLVM byte code version of the program, symbolic variables and assertions.
+KLEE is a symbolic virtual machine that operates on [LLVM](http://llvm.org/) byte code, used for software verification purposes. KLEE is capable to automatically generate tests that achieve high coverage on programs. To do that, it needs an LLVM byte code version of the program, symbolic variables and assertions. For example, if we have to verify this function:
+
+```C
+bool check_arg(int a) {
+    if (a > 10)
+        return false;
+    else if (a <= 10)
+        return true;
+    return false; // not reachable
+}
+```
+
+This is actually a silly example, I know, but let's verify this function with this main:
+
+```C
+#include <klee/klee.h>
+
+int main() {
+    int input;
+    klee_make_symbolic(&input, sizeof(int), "input");
+    return check_arg(input);
+}
+```
+
+And than modify the function to include an assertion:
+
+```C
+bool check_arg(int a) {
+    if (a > 10)
+        return false;
+    else if (a <= 10)
+        return true;
+    klee_assert(false);
+    return false; // not reachable
+}
+```
+
+KLEE will generate test cases for the `input` variable, trying to execute all the possible execution paths and make the provided assertions to fail (if any given). KLEE is also able to find memory errors such as out of bound array access and many other common errors.
