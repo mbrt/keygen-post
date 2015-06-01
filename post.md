@@ -156,7 +156,7 @@ bool check_arg(int a) {
 Compile it to LLVM intermediate representation and run the test generation:
 
 ```
-clang -emit-llvm -o test.ll -c test.c
+clang -emit-llvm -g -o test.ll -c test.c
 klee test.ll
 ```
 
@@ -210,7 +210,7 @@ We get this output:
 ```
 $ klee test.ll 
 KLEE: output directory is "/work/klee-out-2"
-KLEE: ERROR: (location information missing) ASSERTION FAIL: 0
+KLEE: ERROR: /work/test.c:9: ASSERTION FAIL: 0
 KLEE: NOTE: now ignoring this error at this location
 
 KLEE: done: total instructions = 27
