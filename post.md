@@ -198,10 +198,10 @@ So far, so good. But what if we change the function in this way?
 bool check_arg(int a) {
     if (a > 10)
         return false;
-    else if (a < 10)
+    else if (a < 10)    // instead of <=
         return true;
     klee_assert(false);
-    return false; // not reachable
+    return false;       // now reachable
 }
 ```
 
@@ -218,7 +218,7 @@ KLEE: done: completed paths = 3
 KLEE: done: generated tests = 3
 ```
 
-And this is the `klee-last` directory contenst:
+And this is the `klee-last` directory contents:
 
 ```
 $ ls klee-last/
