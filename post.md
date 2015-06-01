@@ -240,4 +240,12 @@ As we had expected, the assertion fails while `input` value is 10. So, as we now
 
 KLEE abilities to find execution paths of an application are very good. According to the [OSDI 2008 paper](http://llvm.org/pubs/2008-12-OSDI-KLEE.html), KLEE has been successfully used to test all 89 stand-alone programs in GNU COREUTILS and the equivalent busybox port, finding previously undiscovered bugs, errors and inconsistencies. The achieved code coverage were more than 90% per tool. Pretty awesome!
 
-But, you may ask: [The question is, who cares?](https://www.youtube.com/watch?v=j_T9YtA1mRQ). You will see it in a moment. As we have a powerful tool to find execution paths, we can use it to find the path we are interested in. As showed by the nice [symbolic maze](https://feliam.wordpress.com/2010/10/07/the-symbolic-maze/) post of Feliam, we can use KLEE to solve a maze. The idea is simple but very powerful: flag the portion of code we are interested in with a `klee_assert(0)` call, causing KLEE to highlight the test case able to reach that point.
+But, you may ask: [The question is, who cares?](https://www.youtube.com/watch?v=j_T9YtA1mRQ). You will see it in a moment. As we have a powerful tool to find execution paths, we can use it to find the path we are interested in. As showed by the nice [symbolic maze](https://feliam.wordpress.com/2010/10/07/the-symbolic-maze/) post of Feliam, we can use KLEE to solve a maze. The idea is simple but very powerful: flag the portion of code you interested in with a `klee_assert(0)` call, causing KLEE to highlight the test case able to reach that point. In the maze example, this is as simple as changing a `read` call with a `klee_make_symbolic` and the `prinft("You win!\n")` with the already mentioned `klee_assert(0)`. Test cases triggering this assertion are the one solving the maze!
+
+## KLEE to reverse a function
+
+If the program has libc functions use KLEE uclibc and posix runtime in this way:
+
+```
+klee --libc=uclibc --posix-runtime myapp.ll
+```
