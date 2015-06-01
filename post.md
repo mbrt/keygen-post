@@ -115,7 +115,7 @@ The version check is done by making an HTTP request to a specific page that retu
 Anyway, this is the big picture of the registration validation functions, and this is pretty boring. Let's move on to the interesting part. You may notice that I provided code for the main procedure, but not for the helper functions like `get_license_type`, `compute_customer_number`, and so on. This is because I did not have to reverse them. They contains a lot of arithmetical and logical operations on registration data, and they are very difficult to understand. The good news is that we do not have to understand, we need only to reverse them!
 
 ## KLEE
-KLEE is a symbolic virtual machine that operates on [LLVM](http://llvm.org/) byte code, used for software verification purposes. KLEE is capable to automatically generate tests achieving high coverage on programs. KLEE is also able to find memory errors such as out of bound array access and many other common errors. To do that, it needs an LLVM byte code version of the program, symbolic variables and assertions. Take this example function:
+KLEE is a symbolic virtual machine that operates on [LLVM](http://llvm.org/) byte code, used for software verification purposes. KLEE is capable to automatically generate tests achieving high code coverage. KLEE is also able to find memory errors such as out of bound array accesses and many other common errors. To do that, it needs an LLVM byte code version of the program, symbolic variables and (optionally) assertions. I have also prepared a [Docker image](https://registry.hub.docker.com/u/mbrt/klee/) with `clang` and `klee` already configured and ready to use. So, you have not excuses to try it out! Take this example function:
 
 ```C
 bool check_arg(int a) {
@@ -140,7 +140,7 @@ int main() {
 }
 ```
 
-And than modify the function to include an assertion:
+In there we have a symbolic variable used as input for the function to be tested. We can also modify it to include an assertion:
 
 ```C
 bool check_arg(int a) {
@@ -153,7 +153,7 @@ bool check_arg(int a) {
 }
 ```
 
-Compile it to LLVM intermediate representation and run the test generation:
+We can now use `clang` to compile the program to LLVM intermediate representation and run the test generation with the `klee` command:
 
 ```
 clang -emit-llvm -g -o test.ll -c test.c
@@ -170,7 +170,7 @@ KLEE: done: completed paths = 2
 KLEE: done: generated tests = 2
 ```
 
-KLEE will generate test cases for the `input` variable, trying to cover all the possible execution paths and make the provided assertions to fail (if any given). In this case we have two execution paths and two generated test cases, covering them. We can find the test cases in the output directory (in this case `/work/klee-out-0`). The soft link `klee-last` is also provided for convenience, pointing to the last output directory. A bunch of files gets created, including the two test cases named `test000001.ktest` and `test000002.ktest`. These are binary files, which can be examined with `ktest-tool` utility. Let's try it:
+KLEE will generate test cases for the `input` variable, trying to cover all the possible execution paths and to make the provided assertions to fail (if any given). In this case we have two execution paths and two generated test cases, covering them. Test cases are in the output directory (in this case `/work/klee-out-0`). The soft link `klee-last` is also provided for convenience, pointing to the last output directory. A bunch of files were created, including the two test cases named `test000001.ktest` and `test000002.ktest`. These are binary files, which can be examined with `ktest-tool` utility. Let's try it:
 
 ```
 $ ktest-tool --write-ints klee-last/test000001.ktest 
@@ -236,4 +236,8 @@ ktest file : 'klee-last/test000002.ktest'
 object    0: data: 10
 ```
 
-As we expected, the `input` value is 10, and the assertion fails.
+As we had expected, the assertion fails while `input` value is 10. So, as we now have three execution paths, we also have three test cases, and the whole program gets covered. KLEE provides also the possibility to replay the tests with the real program, but we are not interested in it now. You can see an usage example at this [KLEE tutorial](http://klee.github.io/tutorials/testing-function/#replaying-a-test-case).
+
+KLEE abilities to find execution paths of an application are very good. According to the [OSDI 2008 paper](http://llvm.org/pubs/2008-12-OSDI-KLEE.html), KLEE has been successfully used to test all 89 stand-alone programs in GNU COREUTILS and the equivalent busybox port, finding previously undiscovered bugs, errors and inconsistencies. The achieved code coverage were more than 90% per tool. Pretty awesome!
+
+But, you may ask: [The question is, who cares?](https://www.youtube.com/watch?v=j_T9YtA1mRQ). You will see it in a moment. As we have a powerful tool to find execution paths, we can use it to find the path we are interested in. As showed by the nice [The symbolic maze](https://feliam.wordpress.com/2010/10/07/the-symbolic-maze/) article, we can use KLEE to solve a maze. The idea is simple but very powerful.
