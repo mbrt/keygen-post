@@ -130,6 +130,7 @@ bool check_arg(int a) {
 This is actually a silly example, I know, but let's pretend to verify this function with this main:
 
 ```C
+#include <assert.h>
 #include <klee/klee.h>
 
 int main() {
@@ -203,3 +204,36 @@ bool check_arg(int a) {
     return false; // not reachable
 }
 ```
+
+We get this output:
+
+```
+$ klee test.ll 
+KLEE: output directory is "/work/klee-out-2"
+KLEE: ERROR: (location information missing) ASSERTION FAIL: 0
+KLEE: NOTE: now ignoring this error at this location
+
+KLEE: done: total instructions = 27
+KLEE: done: completed paths = 3
+KLEE: done: generated tests = 3
+```
+
+And this is the `klee-last` directory contenst:
+
+```
+$ ls klee-last/
+assembly.ll   run.istats        test000002.assert.err  test000003.ktest
+info          run.stats         test000002.ktest       warnings.txt
+messages.txt  test000001.ktest  test000002.pc
+```
+
+Note the `test000002.assert.err` file. If we examine its corresponding test file, we have:
+
+```
+$ ktest-tool --write-ints klee-last/test000002.ktest 
+ktest file : 'klee-last/test000002.ktest'
+...
+object    0: data: 10
+```
+
+As we expected, the `input` value is 10, and the assertion fails.
