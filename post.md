@@ -115,7 +115,7 @@ The version check is done by making an HTTP request to a specific page that retu
 Anyway, this is the big picture of the registration validation functions, and this is pretty boring. Let's move on to the interesting part. You may notice that I provided code for the main procedure, but not for the helper functions like `get_license_type`, `compute_customer_number`, and so on. This is because I did not have to reverse them. They contains a lot of arithmetical and logical operations on registration data, and they are very difficult to understand. The good news is that we do not have to understand, we need only to reverse them!
 
 ## KLEE
-KLEE is a symbolic virtual machine that operates on [LLVM](http://llvm.org/) byte code, used for software verification purposes. KLEE is capable to automatically generate tests that achieve high coverage on programs. To do that, it needs an LLVM byte code version of the program, symbolic variables and assertions. For example, if we have to verify this function:
+KLEE is a symbolic virtual machine that operates on [LLVM](http://llvm.org/) byte code, used for software verification purposes. KLEE is capable to automatically generate tests achieving high coverage on programs. KLEE is also able to find memory errors such as out of bound array access and many other common errors. To do that, it needs an LLVM byte code version of the program, symbolic variables and assertions. Take this example function:
 
 ```C
 bool check_arg(int a) {
@@ -127,7 +127,7 @@ bool check_arg(int a) {
 }
 ```
 
-This is actually a silly example, I know, but let's verify this function with this main:
+This is actually a silly example, I know, but let's pretend to verify this function with this main:
 
 ```C
 #include <klee/klee.h>
@@ -152,4 +152,54 @@ bool check_arg(int a) {
 }
 ```
 
-KLEE will generate test cases for the `input` variable, trying to execute all the possible execution paths and make the provided assertions to fail (if any given). KLEE is also able to find memory errors such as out of bound array access and many other common errors.
+Compile it to LLVM intermediate representation and run the test generation:
+
+```
+clang -emit-llvm -o test.ll -c test.c
+klee test.ll
+```
+
+We get this output:
+
+```
+KLEE: output directory is "/work/klee-out-0"
+
+KLEE: done: total instructions = 26
+KLEE: done: completed paths = 2
+KLEE: done: generated tests = 2
+```
+
+KLEE will generate test cases for the `input` variable, trying to cover all the possible execution paths and make the provided assertions to fail (if any given). In this case we have two execution paths and two generated test cases, covering them. We can find the test cases in the output directory (in this case `/work/klee-out-0`). The soft link `klee-last` is also provided for convenience, pointing to the last output directory. A bunch of files gets created, including the two test cases named `test000001.ktest` and `test000002.ktest`. These are binary files, which can be examined with `ktest-tool` utility. Let's try it:
+
+```
+$ ktest-tool --write-ints klee-last/test000001.ktest 
+ktest file : 'klee-last/test000001.ktest'
+args       : ['test.ll']
+num objects: 1
+object    0: name: 'input'
+object    0: size: 4
+object    0: data: 2147483647
+```
+
+And the second one:
+
+```
+$ ktest-tool --write-ints klee-last/test000002.ktest 
+...
+object    0: data: 0
+```
+
+In these test files, KLEE reports the command line arguments, the symbolic objects along with their size and the value provided for the test. To cover the whole program, we need `input` variable to get a value greater than 10 and one below or equal. You can see that this is the case: in the first test case the value 2147483647 is used, covering the first branch, while 0 is provided for the second, covering the other branch.
+
+So far, so good. But what if we change the function in this way?
+
+```C
+bool check_arg(int a) {
+    if (a > 10)
+        return false;
+    else if (a < 10)
+        return true;
+    klee_assert(false);
+    return false; // not reachable
+}
+```
