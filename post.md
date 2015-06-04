@@ -318,7 +318,7 @@ int main(int argc, char* argv[]) {
 }
 ```
 
-If we run it with KLEE we get these warnings:
+If we run it with KLEE we get this error:
 
 ```
 $ clang -emit-llvm -g -o atoi.ll -c atoi.c
@@ -331,24 +331,78 @@ KLEE: NOTE: now ignoring this error at this location
 ...
 ```
 
-To fix this we can use the KLEE uclibc and posix runtime:
+To fix this we can use the KLEE uClibc and POSIX runtime. Taken from the help: *"If we were running a normal native application, it would have been linked with the C library, but in this case KLEE is running the LLVM bitcode file directly. In order for KLEE to work effectively, it needs to have definitions for all the external functions the program may call. Similarly, a native application would be running on top of an operating system that provides lower level facilities like write(), which the C library uses in its implementation. As before, KLEE needs definitions for these functions in order to fully understand the program. We provide a POSIX runtime which is designed to work with KLEE and the uClibc library to provide the majority of operating system facilities used by command line applications"*.
+
+Let's try to use these facilities to test our `atoi` function:
 
 ```
-$ klee --libc=uclibc --posix-runtime atoi.ll
+$ klee --optimize --libc=uclibc --posix-runtime atoi.ll --sym-args 0 1 3
 KLEE: NOTE: Using klee-uclibc : /usr/local/lib/klee/runtime/klee-uclibc.bca
 KLEE: NOTE: Using model: /usr/local/lib/klee/runtime/libkleeRuntimePOSIX.bca
 KLEE: output directory is "/work/klee-out-5"
-KLEE: WARNING ONCE: calling external: syscall(16, 0, 21505, 35407552)
-KLEE: WARNING ONCE: calling __user_main with extra arguments.
+KLEE: WARNING ONCE: calling external: syscall(16, 0, 21505, 70495424)
 KLEE: ERROR: /tmp/klee-uclibc/libc/stdlib/stdlib.c:526: memory error: out of bound pointer
 KLEE: NOTE: now ignoring this error at this location
+
+KLEE: done: total instructions = 5756
+KLEE: done: completed paths = 68
+KLEE: done: generated tests = 68
 ```
 
-And KLEE founds the possible of bound access in our program. Because you know, our program was bugged :) Let's make it safer:
+And KLEE founds the possible of bound access in our program. Because you know, our program is bugged :) Before to jump and fix our code, let me briefly explain what these new flags did:
+
+* `--optimize`: this is for dead code elimination. It is actually a good idea to use this flag when working with non-trivial applications;
+* `--libc=uclibc` and `--posix-runtime`: these are the aforementioned options for uClibc and POSIX runtime;
+* `--sym-args 0 1 3`: this flag tells KLEE to run the program with minimum 0 and maximum 1 argument of length 3.
+
+Note that adding `atoi` function to our code, adds 68 execution paths to the program. Using many libc functions in our code adds complexity, so we have to use them carefully when we want to reverse complex functions.
+
+Let now make the program safe by adding a check to the command line argument length and add an assertion.
 
 ```C
+#include <stdlib.h>
+#include <assert.h>
+#include <klee/klee.h>
+
 int main(int argc, char* argv[]) {
-    int input = argc > 1 ? atoi(argv[1]) : 0;
-    return input;
+    int result = argc > 1 ? atoi(argv[1]) : 0;
+    if (result == 42)
+        klee_assert(0);
+    return result;
 }
 ```
+
+Run KLEE as before:
+
+```
+$ clang -emit-llvm -g -o atoi.ll -c atoi.c 
+$ klee --optimize --libc=uclibc --posix-runtime atoi.ll --sym-args 0 1 3
+KLEE: NOTE: Using klee-uclibc : /usr/local/lib/klee/runtime/klee-uclibc.bca
+KLEE: NOTE: Using model: /usr/local/lib/klee/runtime/libkleeRuntimePOSIX.bca
+KLEE: output directory is "/work/klee-out-6"
+KLEE: WARNING ONCE: calling external: syscall(16, 0, 21505, 53243904)
+KLEE: ERROR: /work/atoi.c:8: ASSERTION FAIL: 0
+KLEE: NOTE: now ignoring this error at this location
+
+KLEE: done: total instructions = 5962
+KLEE: done: completed paths = 73
+KLEE: done: generated tests = 69
+```
+
+Here we go! We have fixed our bug. KLEE is also able to find an input to make the assertion fail:
+
+```
+$ ls klee-last/ | grep err
+test000016.assert.err
+$ ktest-tool klee-last/test000016.ktest
+ktest file : 'klee-last/test000016.ktest'
+args       : ['atoi.ll', '--sym-args', '0', '1', '3']
+num objects: 3
+...
+object    1: name: 'arg0'
+object    1: size: 4
+object    1: data: '+42\x00'
+...
+```
+
+And the answer is 42... as we know.
