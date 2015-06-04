@@ -307,7 +307,7 @@ You win!
 
 Yes!
 
-## Libc
+## KLEE, libc and command line arguments
 
 Not all the functions are so simple. At least we could have calls to the C standard library such as `strlen`, `atoi`, and such. We cannot link our test code with the system available C library, as it is not inspectable by KLEE. For example:
 
