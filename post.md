@@ -351,13 +351,13 @@ KLEE: done: generated tests = 68
 
 And KLEE founds the possible of bound access in our program. Because you know, our program is bugged :) Before to jump and fix our code, let me briefly explain what these new flags did:
 
-* `--optimize`: this is for dead code elimination. It is actually a good idea to use this flag when working with non-trivial applications;
+* `--optimize`: this is for dead code elimination. It is actually a good idea to use this flag when working with non-trivial applications, since it speed things up;
 * `--libc=uclibc` and `--posix-runtime`: these are the aforementioned options for uClibc and POSIX runtime;
-* `--sym-args 0 1 3`: this flag tells KLEE to run the program with minimum 0 and maximum 1 argument of length 3.
+* `--sym-args 0 1 3`: this flag tells KLEE to run the program with minimum 0 and maximum 1 argument of length 3, and make the arguments symbolic.
 
 Note that adding `atoi` function to our code, adds 68 execution paths to the program. Using many libc functions in our code adds complexity, so we have to use them carefully when we want to reverse complex functions.
 
-Let now make the program safe by adding a check to the command line argument length and add an assertion.
+Let now make the program safe by adding a check to the command line argument length. Let's also add an assertion, because it is fun :)
 
 ```C
 #include <stdlib.h>
