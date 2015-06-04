@@ -240,12 +240,115 @@ As we had expected, the assertion fails while `input` value is 10. So, as we now
 
 KLEE abilities to find execution paths of an application are very good. According to the [OSDI 2008 paper](http://llvm.org/pubs/2008-12-OSDI-KLEE.html), KLEE has been successfully used to test all 89 stand-alone programs in GNU COREUTILS and the equivalent busybox port, finding previously undiscovered bugs, errors and inconsistencies. The achieved code coverage were more than 90% per tool. Pretty awesome!
 
-But, you may ask: [The question is, who cares?](https://www.youtube.com/watch?v=j_T9YtA1mRQ). You will see it in a moment. As we have a powerful tool to find execution paths, we can use it to find the path we are interested in. As showed by the nice [symbolic maze](https://feliam.wordpress.com/2010/10/07/the-symbolic-maze/) post of Feliam, we can use KLEE to solve a maze. The idea is simple but very powerful: flag the portion of code you interested in with a `klee_assert(0)` call, causing KLEE to highlight the test case able to reach that point. In the maze example, this is as simple as changing a `read` call with a `klee_make_symbolic` and the `prinft("You win!\n")` with the already mentioned `klee_assert(0)`. Test cases triggering this assertion are the one solving the maze!
+But, you may ask: [The question is, who cares?](https://www.youtube.com/watch?v=j_T9YtA1mRQ). You will see it in a moment.
 
 ## KLEE to reverse a function
 
-If the program has libc functions use KLEE uclibc and posix runtime in this way:
+As we have a powerful tool to find execution paths, we can use it to find the path we are interested in. As showed by the nice [symbolic maze](https://feliam.wordpress.com/2010/10/07/the-symbolic-maze/) post of Feliam, we can use KLEE to solve a maze. The idea is simple but very powerful: flag the portion of code you interested in with a `klee_assert(0)` call, causing KLEE to highlight the test case able to reach that point. In the maze example, this is as simple as changing a `read` call with a `klee_make_symbolic` and the `prinft("You win!\n")` with the already mentioned `klee_assert(0)`. Test cases triggering this assertion are the one solving the maze!
+
+For a concrete example, let's suppose we have this function:
+
+```C
+int magic_computation(int input) {
+    for (int i = 0; i < 32; ++i)
+        input ^= 1 << i;
+    return input;
+}
+```
+
+And we want to know for what input we get the output 253. A main that tests this could be:
+
+```C
+int main(int argc, char* argv[]) {
+    int input = atoi(argv[1]);
+    int output = magic_computation(input);
+    if (output == 253)
+        printf("You win!\n");
+    else
+        printf("You loose\n);
+    return 0;
+}
+```
+
+KLEE can resolve this problem for us, if we provide symbolic inputs and actually an assert to trigger:
+
+```C
+int main(int argc, char* argv[]) {
+    int input, result;
+    klee_make_symbolic(&input, sizeof(int), "input");
+    result = magic_computation(input);
+    if (result == 153)
+        klee_assert(0);
+    return 0;
+}
+```
+
+Run KLEE and print the result:
 
 ```
-klee --libc=uclibc --posix-runtime myapp.ll
+$ clang -emit-llvm -g -o magic.ll -c magic.c
+$ klee magic.ll
+$ ktest-tool --write-ints klee-last/test000001.ktest
+ktest file : 'klee-last/test000001.ktest'
+args       : ['magic.ll']
+num objects: 1
+object    0: name: 'input'
+object    0: size: 4
+object    0: data: -154
+```
+
+The answer is -154. Let's test it:
+
+```
+$ gcc magic.c
+$ ./a.out -154
+You win!
+```
+
+Yes!
+
+## Libc
+
+Not all the functions are so simple. At least we could have calls to the C standard library such as `strlen`, `atoi`, and such. We cannot link our test code with the system available C library, as it is not inspectable by KLEE. For example:
+
+```C
+int main(int argc, char* argv[]) {
+    int input = atoi(argv[1]);
+    return input;
+}
+```
+
+If we run it with KLEE we get these warnings:
+
+```
+$ clang -emit-llvm -g -o atoi.ll -c atoi.c
+$ klee atoi.ll 
+KLEE: output directory is "/work/klee-out-4"
+KLEE: WARNING: undefined reference to function: atoi
+KLEE: WARNING ONCE: calling external: atoi(0)
+KLEE: ERROR: /work/prova.c:5: failed external call: atoi
+KLEE: NOTE: now ignoring this error at this location
+...
+```
+
+To fix this we can use the KLEE uclibc and posix runtime:
+
+```
+$ klee --libc=uclibc --posix-runtime atoi.ll
+KLEE: NOTE: Using klee-uclibc : /usr/local/lib/klee/runtime/klee-uclibc.bca
+KLEE: NOTE: Using model: /usr/local/lib/klee/runtime/libkleeRuntimePOSIX.bca
+KLEE: output directory is "/work/klee-out-5"
+KLEE: WARNING ONCE: calling external: syscall(16, 0, 21505, 35407552)
+KLEE: WARNING ONCE: calling __user_main with extra arguments.
+KLEE: ERROR: /tmp/klee-uclibc/libc/stdlib/stdlib.c:526: memory error: out of bound pointer
+KLEE: NOTE: now ignoring this error at this location
+```
+
+And KLEE founds the possible of bound access in our program. Because you know, our program was bugged :) Let's make it safer:
+
+```C
+int main(int argc, char* argv[]) {
+    int input = argc > 1 ? atoi(argv[1]) : 0;
+    return input;
+}
 ```
