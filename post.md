@@ -405,4 +405,4 @@ object    1: data: '+42\x00'
 ...
 ```
 
-And the answer is 42... as we know.
+And the answer is the string "+42"... as we know.
