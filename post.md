@@ -331,7 +331,9 @@ KLEE: NOTE: now ignoring this error at this location
 ...
 ```
 
-To fix this we can use the KLEE uClibc and POSIX runtime. Taken from the help: *"If we were running a normal native application, it would have been linked with the C library, but in this case KLEE is running the LLVM bitcode file directly. In order for KLEE to work effectively, it needs to have definitions for all the external functions the program may call. Similarly, a native application would be running on top of an operating system that provides lower level facilities like write(), which the C library uses in its implementation. As before, KLEE needs definitions for these functions in order to fully understand the program. We provide a POSIX runtime which is designed to work with KLEE and the uClibc library to provide the majority of operating system facilities used by command line applications"*.
+To fix this we can use the KLEE uClibc and POSIX runtime. Taken from the help:
+
+*"If we were running a normal native application, it would have been linked with the C library, but in this case KLEE is running the LLVM bitcode file directly. In order for KLEE to work effectively, it needs to have definitions for all the external functions the program may call. Similarly, a native application would be running on top of an operating system that provides lower level facilities like write(), which the C library uses in its implementation. As before, KLEE needs definitions for these functions in order to fully understand the program. We provide a POSIX runtime which is designed to work with KLEE and the uClibc library to provide the majority of operating system facilities used by command line applications"*.
 
 Let's try to use these facilities to test our `atoi` function:
 
@@ -411,4 +413,4 @@ There are many other KLEE options and functionalities, but let's move on and try
 
 ## KLEE keygen
 
-Now that we know basic KLEE commands, we can apply them to our particular case. Let's recap the high level picture of the problem:
+Now that we know basic KLEE commands, we can apply them to our particular case. Our problem is simple: we need a customer number, a serial number and a mail address considered valid by the application. The first goal is to get at least one good triple of them, but more ambitiously we want a list of them, to make a key generator.
