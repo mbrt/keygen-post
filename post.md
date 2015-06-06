@@ -372,10 +372,10 @@ int main(int argc, char* argv[]) {
 }
 ```
 
-Run KLEE as before:
+We could also have written `klee_assert(result != 42)`, and get the same result. No matter what solution we adopt, now we have to run KLEE as before:
 
 ```
-$ clang -emit-llvm -g -o atoi.ll -c atoi.c 
+$ clang -emit-llvm -g -o atoi.ll -c atoi.c
 $ klee --optimize --libc=uclibc --posix-runtime atoi.ll --sym-args 0 1 3
 KLEE: NOTE: Using klee-uclibc : /usr/local/lib/klee/runtime/klee-uclibc.bca
 KLEE: NOTE: Using model: /usr/local/lib/klee/runtime/libkleeRuntimePOSIX.bca
@@ -406,3 +406,9 @@ object    1: data: '+42\x00'
 ```
 
 And the answer is the string "+42"... as we know.
+
+There are many other KLEE options and functionalities, but let's move on and try to solve our original problem. Interested readers can find a good tutorial, for example, in [How to Use KLEE to Test GNU Coreutils](http://klee.github.io/tutorials/testing-coreutils/).
+
+## KLEE keygen
+
+Now that we know basic KLEE commands, we can apply them to our particular case. Let's recap the high level picture of the problem:
