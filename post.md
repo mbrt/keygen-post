@@ -449,6 +449,29 @@ int main(int argc, char* argv[]) {
 
 Super simple. Copy and paste everything, make the inputs symbolic and assert a certain result (negated, of course).
 
+No! That's not so simple. This is actually the most difficult part of the game. The high level picture of the validation algorithm I have presented is an ideal one. The `check_registration` function is actually a big set of auxiliary functions and data, very tightened with other parts of the program. Even if we now know the most interesting functions, we need to know how much of the related code, is useful or not. We cannot throw everything in our key generator, since every function brings itself other related data and functions. In this way we will end up having the whole program in it. We need to minimize the code KLEE has to analyze, otherwise it will only waste time trying to find something that is actually to difficult to find.
+
+[...] Pictures here.
+
+This is actually not the only problem I've found in this step. External constraints must be carefully considered. For example the [time](http://www.cplusplus.com/reference/ctime/time/) function can be handled by KLEE itself. KLEE tries to generate useful values even from that function. This is good if we want to test bugs related to a strange current time, but in our case, since the code will be executed by the program *at a particular time*, we are only interested in the value provided at that time. We don't want KLEE traits this function as symbolic; we only want the right time value. To solve that problem, I have replaced all the calls to `time` to a `my_time` function, returning a fixed value, defined in the source code.
+
+Another problem comes from the extraction of the functions from their outer context. Often code is written with *implicit conventions* in mind. These are not self-evident in the code because checks are avoided. A trivial example is the null terminator and valid ASCII characters in strings. KLEE do not assumes those constraints, but the validation code do. This is because GUI provides only valid strings. A less trivial example is that the mail address is always passed lowercase from the GUI to the lower level application logic. This is not self-evident if you do not follow every step from the user input to the actual computations with the data.
+
+The solution to this latter problem is to provide KLEE those constraints:
+
+```C
+char mail[10];
+char c;
+klee_make_symbolic(mail, sizeof(mail), "mail");
+for (i = 0; i < sizeof(mail) - 1; ++i) {
+    c = mail[i];
+    klee_assume( (c >= '0' & c <= '9') | (c >= 'a' & c <= 'z') | c == '\0' );
+}
+klee_assume(mail[sizeof(mail) - 1] == '\0');
+```
+
+Logical operators inside `klee_assume` function are bitwise and not logical (i.e. `&` and `|` instead of `&&` and `||`) because they are simpler, since they do not add the extra branches required by lazy operators.
+
 ## TODO
 
 Let's deconstruct the big picture of the registration check presented above in this perspective. We will re-construct it in a way KLEE is able to solve the problem.
