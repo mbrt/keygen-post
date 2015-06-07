@@ -413,4 +413,42 @@ There are many other KLEE options and functionalities, but let's move on and try
 
 ## KLEE keygen
 
-Now that we know basic KLEE commands, we can apply them to our particular case. Our problem is simple: we need a customer number, a serial number and a mail address considered valid by the application. The first goal is to get at least one good triple of them, but more ambitiously we want a list of them, to make a key generator.
+Now that we know basic KLEE commands, we can try to apply them to our particular case. We have understood some of the validation algorithm, but we don't know the computation details. They are just a mess of arithmetical and logical operations that we are tired to analyze.
+
+Here is our plan:
+
+* we need at least a valid customer number, a serial number and a mail address;
+* more ambitiously we want a list of them, to make a key generator.
+
+This is a possibility:
+
+```C
+// copy and paste of all the registration code
+enum {
+    ERROR,
+    STANDARD,
+    PRO
+} license_type = ERROR;
+// ...
+enum result_t check_registration(int serial, int customer_num, const char* mail);
+// ...
+
+int main(int argc, char* argv[]) {
+    int serial, customer;
+    char mail[10];
+    enum result_t result;
+    klee_make_symbolic(&serial, sizeof(serial), "serial");
+    klee_make_symbolic(&customer, sizeof(customer), "customer");
+    klee_make_symbolic(&mail, sizeof(mail), "mail");
+
+    valid = check_registration(serial, customer, mail);
+    valid &= license_type == PRO;
+    klee_assert(!valid);
+}
+```
+
+Super simple. Copy and paste everything, make the inputs symbolic and assert a certain result (negated, of course).
+
+## TODO
+
+Let's deconstruct the big picture of the registration check presented above in this perspective. We will re-construct it in a way KLEE is able to solve the problem.
