@@ -453,7 +453,22 @@ No! That's not so simple. This is actually the most difficult part of the game. 
 
 [...] Pictures here.
 
-This is actually not the only problem I've found in this step. External constraints must be carefully considered. For example the [time](http://www.cplusplus.com/reference/ctime/time/) function can be handled by KLEE itself. KLEE tries to generate useful values even from that function. This is good if we want to test bugs related to a strange current time, but in our case, since the code will be executed by the program *at a particular time*, we are only interested in the value provided at that time. We don't want KLEE traits this function as symbolic; we only want the right time value. To solve that problem, I have replaced all the calls to `time` to a `my_time` function, returning a fixed value, defined in the source code.
+A big bunch of functions removed is the one extracting and loading the table of valid mail addresses. To do this I stepped with the debugger until the table was completely loaded and then dumped the memory of the process. Then I've used a nice "export to C array" functionality of [HEX Workshop](http://www.hexworkshop.com/), to export the actual piece of memory of the mail table to actual code:
+
+```C
+uint16_t hashHeader[8192] =
+{
+    0x0, 0x28, 0x12, 0x24, 0x2d, 0x2b, 0x2e, 0x23, 0x2b, 0x26,
+    // ...
+};
+int16_t hashData[1000000] =
+{
+    15306, 18899, 18957, -24162, 63045, -26834, -21, -39653, 271441, -5588,
+    // ...
+};
+```
+
+But, cutting out code is not the only problem I've found in this step. External constraints must be carefully considered. For example the [time](http://www.cplusplus.com/reference/ctime/time/) function can be handled by KLEE itself. KLEE tries to generate useful values even from that function. This is good if we want to test bugs related to a strange current time, but in our case, since the code will be executed by the program *at a particular time*, we are only interested in the value provided at that time. We don't want KLEE traits this function as symbolic; we only want the right time value. To solve that problem, I have replaced all the calls to `time` to a `my_time` function, returning a fixed value, defined in the source code.
 
 Another problem comes from the extraction of the functions from their outer context. Often code is written with *implicit conventions* in mind. These are not self-evident in the code because checks are avoided. A trivial example is the null terminator and valid ASCII characters in strings. KLEE do not assumes those constraints, but the validation code do. This is because GUI provides only valid strings. A less trivial example is that the mail address is always passed lowercase from the GUI to the lower level application logic. This is not self-evident if you do not follow every step from the user input to the actual computations with the data.
 
