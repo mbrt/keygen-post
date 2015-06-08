@@ -449,11 +449,19 @@ int main(int argc, char* argv[]) {
 
 Super simple. Copy and paste everything, make the inputs symbolic and assert a certain result (negated, of course).
 
-No! That's not so simple. This is actually the most difficult part of the game. The high level picture of the validation algorithm I have presented is an ideal one. The `check_registration` function is actually a big set of auxiliary functions and data, very tightened with other parts of the program. Even if we now know the most interesting functions, we need to know how much of the related code, is useful or not. We cannot throw everything in our key generator, since every function brings itself other related data and functions. In this way we will end up having the whole program in it. We need to minimize the code KLEE has to analyze, otherwise it will only waste time trying to find something that is actually to difficult to find.
+No! That's not so simple. This is actually the most difficult part of the game. The high level picture of the validation algorithm I have presented is an ideal one. The `check_registration` function is actually a big set of auxiliary functions and data, very tightened with other parts of the program. Even if we now know the most interesting functions, we need to know how much of the related code, is useful or not. We cannot throw everything in our key generator, since every function brings itself other related data and functions. In this way we will end up having the whole program in it. We need to minimize the code KLEE has to analyze, otherwise it will be too difficult to have its job done.
 
-[...] Pictures here.
+This is a picture of the high level workflow, as IDA proximity view proposes:
 
-A big bunch of functions removed is the one extracting and loading the table of valid mail addresses. To do this I stepped with the debugger until the table was completely loaded and then dumped the memory of the process. Then I've used a nice "export to C array" functionality of [HEX Workshop](http://www.hexworkshop.com/), to export the actual piece of memory of the mail table to actual code:
+![Known license functions](https://raw.githubusercontent.com/mbrt/keygen-post/master/known_license_func_diagram.png)
+
+and this is the overview for a single node of this schema (precisely `license_getType`):
+
+![license_getType overview](https://github.com/mbrt/keygen-post/blob/master/get_license_type_overview.png)
+
+As you can imagine, the complete call graph becomes really big in the end.
+
+In the cleanup process I have done, a big bunch of functions removed is the one extracting and loading the table of valid mail addresses. To do this I stepped with the debugger until the table was completely loaded and then dumped the memory of the process. Then I've used a nice "export to C array" functionality of [HEX Workshop](http://www.hexworkshop.com/), to export the actual piece of memory of the mail table to actual code:
 
 ```C
 uint16_t hashHeader[8192] =
