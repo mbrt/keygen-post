@@ -118,12 +118,16 @@ Anyway, this is the big picture of the registration validation functions, and th
 KLEE is a symbolic virtual machine that operates on [LLVM](http://llvm.org/) byte code, used for software verification purposes. KLEE is capable to automatically generate tests achieving high code coverage. KLEE is also able to find memory errors such as out of bound array accesses and many other common errors. To do that, it needs an LLVM byte code version of the program, symbolic variables and (optionally) assertions. I have also prepared a [Docker image](https://registry.hub.docker.com/u/mbrt/klee/) with `clang` and `klee` already configured and ready to use. So, you have no excuses to try it out! Take this example function:
 
 ```C
-bool check_arg(int a) {
+#define FALSE 0
+#define TRUE 1
+typedef int BOOL;
+
+BOOL check_arg(int a) {
     if (a > 10)
-        return false;
+        return FALSE;
     else if (a <= 10)
-        return true;
-    return false; // not reachable
+        return TRUE;
+    return FALSE; // not reachable
 }
 ```
 
@@ -143,13 +147,13 @@ int main() {
 In there we have a symbolic variable used as input for the function to be tested. We can also modify it to include an assertion:
 
 ```C
-bool check_arg(int a) {
+BOOL check_arg(int a) {
     if (a > 10)
-        return false;
+        return FALSE;
     else if (a <= 10)
-        return true;
-    klee_assert(false);
-    return false; // not reachable
+        return TRUE;
+    klee_assert(FALSE);
+    return FALSE; // not reachable
 }
 ```
 
@@ -195,13 +199,13 @@ In these test files, KLEE reports the command line arguments, the symbolic objec
 So far, so good. But what if we change the function in this way?
 
 ```C
-bool check_arg(int a) {
+BOOL check_arg(int a) {
     if (a > 10)
-        return false;
+        return FALSE;
     else if (a < 10)    // instead of <=
-        return true;
-    klee_assert(false);
-    return false;       // now reachable
+        return TRUE;
+    klee_assert(FALSE);
+    return FALSE;       // now reachable
 }
 ```
 
