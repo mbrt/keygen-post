@@ -523,3 +523,170 @@ Go out, walk around, come back, have a shower, and.... oh no! It's still running
 We have pretended too much from the tool. It's time to use the brain and ease its work a little bit.
 
 Let's decompose the big picture of the registration check presented before piece by piece. We will try to solve it bit by bit, to reduce the solution space and so, the complexity.
+
+Recall that the algorithm is composed by three main conditions:
+
+The validation is divided in three main parts:
+
+* serial number must be valid by itself;
+* serial number, combined with mail address have to correspond to the actual customer number;
+* there have to be a correspondence between serial number and mail address, stored in a static table in the binary.
+
+Can we split them in different KLEE runs?
+
+Clearly the first one can be written as:
+
+```C
+#include <assert.h>
+#include <klee/klee.h>
+// include all the functions extracted from the program
+#include "extracted_code.c"
+
+enum {
+    ERROR,
+    STANDARD,
+    PRO
+} license_type = ERROR;
+
+int main(int argc, char* argv[]) {
+    int serial, valid;
+    klee_make_symbolic(&serial, sizeof(serial), "serial");
+    license_type = get_license_type(serial);
+    valid = (license_type == PRO);
+    klee_assert(!valid);
+}
+```
+
+And let's see if KLEE can work with this single function:
+
+```
+$ clang -emit-llvm -g -o serial_type.ll -c serial_type.c
+$ klee --optimize --libc=uclibc --posix-runtime serial_type.ll
+...
+KLEE: ERROR: /work/symbolic/serial_type.c:17: ASSERTION FAIL: !valid
+...
+
+$ ls klee-last/ | grep err
+test000019.assert.err
+$ ktest-tool --write-ints klee-last/test000019.ktest 
+ktest file : 'klee-last/test000019.ktest'
+args       : ['serial_type.ll']
+num objects: 2
+object    0: name: 'model_version'
+object    0: size: 4
+object    0: data: 1
+object    1: name: 'serial'
+object    1: size: 4
+object    1: data: 102690141
+```
+
+Yes! we now have a serial number that is considered PRO by our target application.
+
+The third condition is less simple: we have a table in which are stored values matching mail addresses with serial numbers. The high level check is this:
+
+```C
+int check(int serial, char* mail) {
+    int index = get_index_in_mail_table(serial);
+    if (index > HEADER_SIZE)
+        return VALID_IF_LAST_VERSION;
+    int mail_digest = compute_mail_digest(mail);
+    for (int i = 0; i < 3; ++i) {
+        if (mail_digest_table[index + i] == mail_digest)
+            return VALID;
+    }
+    return INVALID;
+}
+```
+
+This piece of code imposes constraints on our mail address and serial number, but not on the customer number. We can rewrite the checks in two parts, the one checking the serial, and the one checking the mail address:
+
+```C
+int check_serial(int serial, char* mail) {
+    int index = get_index_in_mail_table(serial);
+    int valid = index <= HEADER_SIZE;
+}
+
+int check_mail(char* mail, int index) {
+    int mail_digest = compute_mail_digest(mail);
+    for (int i = 0; i < 3; ++i) {
+        if (mail_digest_table[index + i] == mail_digest)
+            return 1;
+    }
+    return 0;
+}
+```
+
+The `check_mail` function needs the index in the table as secondary input, so it is not completely independent from the other check function. However, `check_mail` can be incorporated by our successful symbolic solver used before:
+
+```C
+// ...
+
+int main(int argc, char* argv[]) {
+    int serial, valid, index;
+    klee_make_symbolic(&serial, sizeof(serial), "serial");
+    license_type = get_license_type(serial);
+    valid = (license_type == PRO);
+    // added just now
+    index = get_index_in_mail_table(serial);
+    valid &= index <= HEADER_SIZE;
+
+    klee_assert(!valid);
+}
+```
+
+And if we run it, we get our revised serial number, that satisfies the additional constraint:
+
+```
+$ clang -emit-llvm -g -o serial.ll -c serial.c
+$ klee --optimize --libc=uclibc --posix-runtime serial.ll
+...
+KLEE: ERROR: /work/symbolic/serial.c:21: ASSERTION FAIL: !valid
+...
+
+$ ls klee-last/ | grep err
+test000032.assert.err
+$ ktest-tool --write-ints klee-last/test000019.ktest 
+...
+object    1: name: 'serial'
+object    1: data: 120300641
+...
+```
+
+For the `check_mail` solution we have to provide the index of a serial, but wait... we have it! We have now a serial, so, computing the index of the table is simple as executing this:
+
+```C
+int index = get_index_in_mail_table(serial);
+```
+
+Therefore, given a serial number, we can solve the mail address in this way:
+
+```C
+// ...
+
+int main(int argc, char* argv[]) {
+    int serial, valid, index;
+    char mail[10];
+
+    // mail is symbolic
+    klee_make_symbolic(mail, sizeof(mail), "mail");
+    for (i = 0; i < sizeof(mail) - 1; ++i)
+    {
+        c = mail[i];
+        klee_assume( (c >= '0' & c <= '9') | (c >= 'a' & c <= 'z') | c == '\0' );
+    }
+    klee_assume(mail[sizeof(mail) - 1] == '\0');
+
+    // get mail as external input
+    if (argc < 2)
+        return 1;
+    serial = atoi(argv[1]);
+
+    // compute index
+    index = get_index_in_mail_table(serial);
+    // check validity
+    valid = check_mail(mail, index);
+    klee_assert(!valid);
+}
+```
+
+We only have to run KLEE with the additional serial argument, providing the computed one by the previous step.
