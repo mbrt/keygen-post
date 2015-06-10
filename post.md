@@ -449,7 +449,9 @@ int main(int argc, char* argv[]) {
 
 Super simple. Copy and paste everything, make the inputs symbolic and assert a certain result (negated, of course).
 
-No! That's not so simple. This is actually the most difficult part of the game. The high level picture of the validation algorithm I have presented is an ideal one. The `check_registration` function is actually a big set of auxiliary functions and data, very tightened with other parts of the program. Even if we now know the most interesting functions, we need to know how much of the related code, is useful or not. We cannot throw everything in our key generator, since every function brings itself other related data and functions. In this way we will end up having the whole program in it. We need to minimize the code KLEE has to analyze, otherwise it will be too difficult to have its job done.
+No! That's not so simple. This is actually the most difficult part of the game. First of all, what do we want to copy? We don't have the source code. In my case I used Hex-Rays decompiler, so maybe I have cheated. When you decompile, however, you don't get immediately a compilable C source code, since there could be dependencies between functions, global variables, and specific Hex-Rays types. For this latter problem I've prepared a the `ida_defs.h` header, providing defines coming from IDA and from Windows headers.
+
+But what to copy? The high level picture of the validation algorithm I have presented is an ideal one. The `check_registration` function is actually a big set of auxiliary functions and data, very tightened with other parts of the program. Even if we now know the most interesting functions, we need to know how much of the related code, is useful or not. We cannot throw everything in our key generator, since every function brings itself other related data and functions. In this way we will end up having the whole program in it. We need to minimize the code KLEE has to analyze, otherwise it will be too difficult to have its job done.
 
 This is a picture of the high level workflow, as IDA proximity view proposes:
 
