@@ -676,7 +676,7 @@ int main(int argc, char* argv[]) {
     }
     klee_assume(mail[sizeof(mail) - 1] == '\0');
 
-    // get mail as external input
+    // get serial as external input
     if (argc < 2)
         return 1;
     serial = atoi(argv[1]);
