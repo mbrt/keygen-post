@@ -603,7 +603,8 @@ This piece of code imposes constraints on our mail address and serial number, bu
 ```C
 int check_serial(int serial, char* mail) {
     int index = get_index_in_mail_table(serial);
-    int valid = index <= HEADER_SIZE;
+    // added also index >= 0 constraint since an array offset must be positive!
+    int valid = index <= HEADER_SIZE && index >= 0;
 }
 
 int check_mail(char* mail, int index) {
@@ -628,7 +629,7 @@ int main(int argc, char* argv[]) {
     valid = (license_type == PRO);
     // added just now
     index = get_index_in_mail_table(serial);
-    valid &= index <= HEADER_SIZE;
+    valid &= index <= HEADER_SIZE && index >= 0;
 
     klee_assert(!valid);
 }
@@ -690,3 +691,152 @@ int main(int argc, char* argv[]) {
 ```
 
 We only have to run KLEE with the additional serial argument, providing the computed one by the previous step.
+
+```
+$ clang -emit-llvm -g -o mail.ll -c mail.c
+$ klee --optimize --libc=uclibc --posix-runtime mail.ll 120300641
+...
+KLEE: ERROR: /work/symbolic/mail.c:34: ASSERTION FAIL: !valid
+...
+$ ls klee-last/ | grep err
+test000023.assert.err
+$ ktest-tool klee-last/test000023.ktest 
+...
+object    1: name: 'mail'
+object    1: data: 'yrwt\x00\x00\x00\x00\x00\x00'
+...
+```
+
+Ok, the mail found by KLEE is "yrwt". This is not a mail, of course, but in the code there is not a proper validation imposing the presence "@" and "." chars, so we are fine with it :)
+
+The last piece of the puzzle we need is the customer number. Here is the check:
+
+```C
+int expected_customer = compute_customer_number(serial, mail);
+if (expected_customer != customer_num)
+    return INVALID;
+```
+
+This is simpler than before, since we already have a serial and a mail, so the only thing missing is a customer number matching those. We can compute it directly, even without symbolic execution:
+
+```C
+int main(int argc, char* argv[])
+{
+    if (argc < 3)
+        return 1;
+
+    int serial = atoi(argv[1]);
+    char* mail = argv[2];
+    int customer_number = compute_customer_number(serial, mail);
+    printf("%d\n", customer_number);
+    return 0;
+}
+```
+
+Let's execute it:
+
+```
+$ gcc customer.c customer
+$ ./customer 120300641 yrwt
+1175211979
+```
+
+Yeah! And if we try those numbers and mail address onto the real program, we are now ligit and registered users :)
+
+## Want more keys?
+
+We have just found one key, and that's cool, but what about making a keygen? KLEE is deterministic, so if you run the same code over and over you will get always the same results. So, we are now stuck with this single serial.
+
+To solve the problem we have to think about what variables we can move around to get different valid serial numbers to start with, and with them solve related mail addresses and compute a customer number.
+
+We have to add constraints to the serial generation, so that every run we can run a slightly different version of the program and get a different serial number. The simplest thing to do is to constraint `get_index_in_mail_table` to return an index inside a proper subset of the range [0, `HEADER_SIZE`] used before. For example we can divide it in equal chunks of size 5 and run the whole thing for every chunk.
+
+This is the modified version of the serial generation:
+
+```C
+int main(int argc, char* argv[]) {
+    int serial, min_index, max_index, valid;
+
+    // get chunk bounds as external inputs
+    if (argc < 3)
+        return 1;
+    min_index= atoi(argv[1]);
+    max_index= atoi(argv[2]);
+
+    // check and assert
+    index = get_index_in_mail_table(serial);
+    valid = index >= min_index && index < max_index;
+    klee_assert(!valid);
+    return 0;
+}
+```
+
+We now need a script that runs KLEE and collect the results for all those chunks. Here it is:
+
+```bash
+#!/bin/bash
+
+MIN_HASH=0
+MAX_HASH=8033
+STEP=5
+
+echo "Index;License;Mail;Customer"
+
+for HASH in $(seq $MIN_HASH $STEP $MAX_HASH); do
+    echo -n "$HASH;"
+
+    HASH_MIN=$HASH
+    HASH_MAX=$(( HASH_MIN + STEP ))
+    LICENSE=$(./solve.sh symbolic_license_hash_solver.o $HASH_MIN $HASH_MAX)
+    if [ -z "$LICENSE" ]; then
+        echo ";;"
+        continue
+    fi
+    MAIL_ARRAY=$(./solve.sh symbolic_mail_solver.o $LICENSE)
+    if [ -z "$MAIL_ARRAY" ]; then
+        echo ";;"
+        continue
+    fi
+    MAIL=$(sed 's/\\x00//g' <<< $MAIL_ARRAY | sed "s/'//g")
+    CUSTOMER=$(./license_extractCustomerNumber $LICENSE $MAIL)
+    
+    echo "$LICENSE;$MAIL;$CUSTOMER"
+done
+```
+
+This script uses the `solve.sh` script, that does the actual work and prints the result of KLEE runs:
+
+```bash
+#!/bin/bash
+# do work
+klee $@ >/dev/null 2>&1
+# print result
+ASSERT_FILE=$(ls klee-last | grep .assert.err)
+TEST_FILE=$(basename klee-last/$ASSERT_FILE .assert.err)
+OUTPUT=$(ktest-tool --write-ints klee-last/$TEST_FILE.ktest | grep data)
+RESULT=$(sed 's/.*:.*: //' <<< $OUTPUT)
+echo $RESULT
+# cleanup
+rm -rf $(readlink -f klee-last)
+rm -f klee-last
+```
+
+Here is the final run:
+
+```
+$ ./keygen_all.sh
+Index;License;Mail;Customer
+...
+2400;;;
+2405;115019227;4h79;1162863222
+2410;112625605;7cxd;554797040
+...
+```
+
+Note that not all the serial numbers are solvable, but we are ok with that. We now have a bunch of solved registrations. We can put them in some simple GUI that exposes to the user one of them randomly.
+
+That's all folks.
+
+## References
+
+Here are reported some useful links that can be useful for you to deepen some of the arguments touched here.
