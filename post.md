@@ -776,29 +776,29 @@ We now need a script that runs KLEE and collect the results for all those chunks
 ```bash
 #!/bin/bash
 
-MIN_HASH=0
-MAX_HASH=8033
+MIN_INDEX=0
+MAX_INDEX=8033
 STEP=5
 
 echo "Index;License;Mail;Customer"
 
-for HASH in $(seq $MIN_HASH $STEP $MAX_HASH); do
-    echo -n "$HASH;"
+for INDEX in $(seq $MIN_INDEX $STEP $MAX_INDEX); do
+    echo -n "$INDEX;"
 
-    HASH_MIN=$HASH
-    HASH_MAX=$(( HASH_MIN + STEP ))
-    LICENSE=$(./solve.sh symbolic_license_hash_solver.o $HASH_MIN $HASH_MAX)
+    CHUNK_MIN=$INDEX
+    CHUNK_MAX=$(( CHUNK_MIN + STEP ))
+    LICENSE=$(./solve.sh serial.ll $CHUNK_MIN $CHUNK_MAX)
     if [ -z "$LICENSE" ]; then
         echo ";;"
         continue
     fi
-    MAIL_ARRAY=$(./solve.sh symbolic_mail_solver.o $LICENSE)
+    MAIL_ARRAY=$(./solve.sh mail.ll $LICENSE)
     if [ -z "$MAIL_ARRAY" ]; then
         echo ";;"
         continue
     fi
     MAIL=$(sed 's/\\x00//g' <<< $MAIL_ARRAY | sed "s/'//g")
-    CUSTOMER=$(./license_extractCustomerNumber $LICENSE $MAIL)
+    CUSTOMER=$(./customer $LICENSE $MAIL)
     
     echo "$LICENSE;$MAIL;$CUSTOMER"
 done
