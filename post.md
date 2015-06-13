@@ -839,4 +839,9 @@ That's all folks.
 
 ## References
 
-Here are reported some useful links that can be useful for you to deepen some of the arguments touched here.
+Here are reported some useful links that can be useful for you to deepen some of the arguments touched here:
+
+* [KLEE main site](http://klee.github.io/) in which you can find documentation, examples and some news;
+* My [Docker](https://www.docker.com/) image of [KLEE](https://registry.hub.docker.com/u/mbrt/klee/) that you can use as is if you want to avoid building KLEE from sources. It is an automated build (sources [here](https://github.com/mbrt/docker-klee)) so you can use it safely;
+* Tutorial on using KLEE onto [GNU Coreutils](http://www.gnu.org/software/coreutils/) is [here](http://klee.github.io/tutorials/testing-coreutils/) if you want to learn to use better KLEE for testing purposes.
+* The Feliam's article [The Symbolic Maze!](https://feliam.wordpress.com/2010/10/07/the-symbolic-maze/) that gave me insights on how to use KLEE for reversing purposes.
