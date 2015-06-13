@@ -501,7 +501,7 @@ klee_assume(mail[sizeof(mail) - 1] == '\0');
 
 Logical operators inside `klee_assume` function are bitwise and not logical (i.e. `&` and `|` instead of `&&` and `||`) because they are simpler, since they do not add the extra branches required by lazy operators.
 
-## Throw everything into KLEE and hope
+## Throw everything into KLEE
 
 Having extracted all the needed functions and global data and solved all the issues with the code, we can now move on and run KLEE with our brand new test program:
 
@@ -518,7 +518,7 @@ Make some coffee, drink it, come back and watch the PC heating up.
 
 Go out, walk around, come back, have a shower, and.... oh no! It's still running! OK, that's enough! Let's kill it.
 
-## Deconstruction
+## Deconstruction approach
 
 We have pretended too much from the tool. It's time to use the brain and ease its work a little bit.
 
