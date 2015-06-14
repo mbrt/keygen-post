@@ -19,7 +19,7 @@ Let me skip the first part, since it is not very interesting. You can find many 
 * validate your beliefs with the debugger if possible. For example, if you think a variable contains the serial, break with the debugger and see if it is the case.
 
 ## Big picture
-When I collected the most interesting functions, I tried to understand the high level flow and the simpler functions. Here is the main variables and types used in the validation process. As a note for the reader: most of them has been actually purged from uninteresting details.
+When I collected the most interesting functions, I tried to understand the high level flow and the simpler functions. Here are the main variables and types used in the validation process. As a note for the reader: most of them has been actually purged from uninteresting details.
 
 ```C
 enum {
@@ -40,14 +40,13 @@ enum result_t {
 This is a convenient `enum` used as a result for the validation. `INVALID` and `VALID` values are pretty self-explanatory.  `VALID_IF_LAST_VERSION` tells that this registration is valid only if the current software version is the last available. The reasons for this strange possibility will be clear shortly.
 
 ```C
-enum { HEADER_SIZE = 8192 };
+#define HEADER_SIZE 8192
 struct {
     int header[HEADER_SIZE];
     int data[1000000];
 } mail_digest_table;
 ```
-This is a data structure, containing digests of mail addresses of
-known registered users. This is a pretty big file embedded in the executable itself. During startup, a resource is extracted in a temporary file and its contents copied into this struct. Each element of the `header` vector is an offset pointing inside the `data` vector.
+This is a data structure, containing digests of mail addresses of known registered users. This is a pretty big file embedded in the executable itself. During startup, a resource is extracted in a temporary file and its content copied into this struct. Each element of the `header` vector is an offset pointing inside the `data` vector.
 
 Here we have a pseudo-C code for the registration check, that uses data types and variables explained above:
 ```C
@@ -78,7 +77,7 @@ enum result_t check_registration(int serial, int customer_num, const char* mail)
 The validation is divided in three main parts:
 * serial number must be valid by itself;
 * serial number, combined with mail address have to correspond to the actual customer number;
-* there have to be a correspondence between serial number and mail address, stored in a static table in the binary.
+* there has to be a correspondence between serial number and mail address, stored in a static table in the binary.
 
 The last point is a little bit unusual. Let me restate it in this way: whenever a customer buy the software, the customer table gets updated with its data and become available in the *next* version of the software (because it is embedded in the binary and not downloaded trough the internet). This explains the `VALID_IF_LAST_VERSION` check: if you buy the software today, the current version does not contain your data. You are still allowed to get a "pro" version until a new version is released. In that moment you are forced to update to that new version, so the software can verify your registration with the updated table. Here is a pseudo-code of that check:
 
@@ -115,7 +114,7 @@ The version check is done by making an HTTP request to a specific page that retu
 Anyway, this is the big picture of the registration validation functions, and this is pretty boring. Let's move on to the interesting part. You may notice that I provided code for the main procedure, but not for the helper functions like `get_license_type`, `compute_customer_number`, and so on. This is because I did not have to reverse them. They contains a lot of arithmetical and logical operations on registration data, and they are very difficult to understand. The good news is that we do not have to understand, we need only to reverse them!
 
 ## KLEE
-KLEE is a symbolic virtual machine that operates on [LLVM](http://llvm.org/) byte code, used for software verification purposes. KLEE is capable to automatically generate tests achieving high code coverage. KLEE is also able to find memory errors such as out of bound array accesses and many other common errors. To do that, it needs an LLVM byte code version of the program, symbolic variables and (optionally) assertions. I have also prepared a [Docker image](https://registry.hub.docker.com/u/mbrt/klee/) with `clang` and `klee` already configured and ready to use. So, you have no excuses to try it out! Take this example function:
+KLEE is a symbolic virtual machine that operates on [LLVM](http://llvm.org/) byte code, used for software verification purposes. KLEE is capable to automatically generate tests achieving high code coverage. KLEE is also able to find memory errors such as out of bound array accesses and many other common errors. To do that, it needs an LLVM byte code version of the program, symbolic variables and (optionally) assertions. I have also prepared a [Docker image](https://registry.hub.docker.com/u/mbrt/klee/) with `clang` and `klee` already configured and ready to use. So, you have no excuses to not try it out! Take this example function:
 
 ```C
 #define FALSE 0
@@ -240,7 +239,7 @@ ktest file : 'klee-last/test000002.ktest'
 object    0: data: 10
 ```
 
-As we had expected, the assertion fails while `input` value is 10. So, as we now have three execution paths, we also have three test cases, and the whole program gets covered. KLEE provides also the possibility to replay the tests with the real program, but we are not interested in it now. You can see an usage example at this [KLEE tutorial](http://klee.github.io/tutorials/testing-function/#replaying-a-test-case).
+As we had expected, the assertion fails when `input` value is 10. So, as we now have three execution paths, we also have three test cases, and the whole program gets covered. KLEE provides also the possibility to replay the tests with the real program, but we are not interested in it now. You can see an usage example at this [KLEE tutorial](http://klee.github.io/tutorials/testing-function/#replaying-a-test-case).
 
 KLEE abilities to find execution paths of an application are very good. According to the [OSDI 2008 paper](http://llvm.org/pubs/2008-12-OSDI-KLEE.html), KLEE has been successfully used to test all 89 stand-alone programs in GNU COREUTILS and the equivalent busybox port, finding previously undiscovered bugs, errors and inconsistencies. The achieved code coverage were more than 90% per tool. Pretty awesome!
 
@@ -269,7 +268,7 @@ int main(int argc, char* argv[]) {
     if (output == 253)
         printf("You win!\n");
     else
-        printf("You loose\n);
+        printf("You lose\n");
     return 0;
 }
 ```
@@ -281,7 +280,7 @@ int main(int argc, char* argv[]) {
     int input, result;
     klee_make_symbolic(&input, sizeof(int), "input");
     result = magic_computation(input);
-    if (result == 153)
+    if (result == 253)
         klee_assert(0);
     return 0;
 }
@@ -355,9 +354,9 @@ KLEE: done: completed paths = 68
 KLEE: done: generated tests = 68
 ```
 
-And KLEE founds the possible of bound access in our program. Because you know, our program is bugged :) Before to jump and fix our code, let me briefly explain what these new flags did:
+And KLEE founds the possible out of bound access in our program. Because you know, our program is bugged :) Before to jump and fix our code, let me briefly explain what these new flags did:
 
-* `--optimize`: this is for dead code elimination. It is actually a good idea to use this flag when working with non-trivial applications, since it speed things up;
+* `--optimize`: this is for dead code elimination. It is actually a good idea to use this flag when working with non-trivial applications, since it speeds things up;
 * `--libc=uclibc` and `--posix-runtime`: these are the aforementioned options for uClibc and POSIX runtime;
 * `--sym-args 0 1 3`: this flag tells KLEE to run the program with minimum 0 and maximum 1 argument of length 3, and make the arguments symbolic.
 
@@ -530,7 +529,7 @@ The validation is divided in three main parts:
 
 * serial number must be valid by itself;
 * serial number, combined with mail address have to correspond to the actual customer number;
-* there have to be a correspondence between serial number and mail address, stored in a static table in the binary.
+* there has to be a correspondence between serial number and mail address, stored in a static table in the binary.
 
 Can we split them in different KLEE runs?
 
