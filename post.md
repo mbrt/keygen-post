@@ -1,7 +1,7 @@
 # Keygenning with KLEE
 In the past weeks I enjoyed working on reversing a software (don't ask me the name), to study how serial numbers are validated. The story the user has to follow is the same for many others: download the trial, pay, get the serial number, use it in the annoying nag screen to get the fully functional version.
 
-Since my purpose is to not damage the company developing the software, I will not mention the name of the software, nor I will publish the code of the final key generator. My goal is instead to study a real case of serial number validation, and to highlight its weaknesses.
+Since my purpose is to not damage the company developing the software, I will not mention the name of the software, nor I will publish the final key generator in binary form, nor its source code. My goal is instead to study a real case of serial number validation, and to highlight its weaknesses.
 
 In this post we are going to take a look at the steps I followed to reverse the serial validation process and to make a key generator using [KLEE](http://klee.github.io/) symbolic virtual machine. We are not going to follow all the details on the reversing part, since you cannot reproduce them on your own. We will concentrate our thoughts on the key-generator itself: that is the most interesting part.
 
