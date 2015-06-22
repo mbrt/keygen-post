@@ -602,8 +602,7 @@ This piece of code imposes constraints on our mail address and serial number, bu
 ```C
 int check_serial(int serial, char* mail) {
     int index = get_index_in_mail_table(serial);
-    // added also index >= 0 constraint since an array offset must be positive!
-    int valid = index <= HEADER_SIZE && index >= 0;
+    int valid = index <= HEADER_SIZE;
 }
 
 int check_mail(char* mail, int index) {
@@ -628,7 +627,7 @@ int main(int argc, char* argv[]) {
     valid = (license_type == PRO);
     // added just now
     index = get_index_in_mail_table(serial);
-    valid &= index <= HEADER_SIZE && index >= 0;
+    valid &= index <= HEADER_SIZE;
 
     klee_assert(!valid);
 }
@@ -651,6 +650,8 @@ object    1: name: 'serial'
 object    1: data: 120300641
 ...
 ```
+
+For those who are wondering if `get_index_in_mail_table` could return a negative index, and so possibly crash the program I can answer that they are not alone. [@0vercl0k](https://twitter.com/0vercl0k) made me the same question, and unfortunately I have to answer a no. I tried, because I am a lazy ass, by changing the assertion above to `klee_assert(index < 0)`, but it was not triggered by KLEE. I then manually checked the function's code and I saw a beautiful `if (result < 0) result = 0`. So, the answer is no! You don't have found a vulnerability in the application, but keep searching :)
 
 For the `check_mail` solution we have to provide the index of a serial, but wait... we have it! We have now a serial, so, computing the index of the table is simple as executing this:
 
