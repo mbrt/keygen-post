@@ -114,7 +114,7 @@ The version check is done by making an HTTP request to a specific page that retu
 Anyway, this is the big picture of the registration validation functions, and this is pretty boring. Let's move on to the interesting part. You may notice that I provided code for the main procedure, but not for the helper functions like `get_license_type`, `compute_customer_number`, and so on. This is because I did not have to reverse them. They contains a lot of arithmetical and logical operations on registration data, and they are very difficult to understand. The good news is that we do not have to understand, we need only to reverse them!
 
 ## Symbolic execution
-Symbolic execution is a way to analyze programs determining what inputs cause each branch of the program to execute. A symbolic execution engine substitutes inputs of the program (that could be files, standard input, network stream, etc.) with symbolic variables under its control. It than executes the program, tracking a symbolic state. When a branch of the program depends on some symbolic variable, a constraint solver is executed, and if possible forks the symbolic engine, by following each of the two paths, with their corresponding constraints. For example:
+Symbolic execution is a way to analyze programs determining what inputs cause each branch of the program to execute. A symbolic execution engine substitutes inputs of the program (that could be files, standard input, network stream, etc.) with symbolic variables under its control. It than executes the program, tracking a symbolic state. When a branch of the program depends on some symbolic variable, a constraint is added to that variable, in order to take, or not take that branch. Symbolic execution then follows each of the two paths, bringing forward the new constraints (if they are satisfiable). For example:
 
 ```C
 int v1 = a, v2 = b; // symbolic variables
@@ -124,22 +124,25 @@ if (v2 == 0 && v1 <= 0)
    error();
 ```
 
-We want to check if `error` is reachable, by using symbolic variables `a` and `b`, assigned to variables of the program `v1` and `v2`. In line 2 we have the constraint `v1 > 0` and so, the symbolic engine adds a constraint to the symbolic variable `a`: `a > 0` for the branch taken or conversely `a <= 0` for the branch not taken. It then continues the execution first trying with the first constraint and than with the second. Whenever a new path condition is reached, new constraints are added to the symbolic state, until that condition is no more satisfiable. The execution engine tries to cover all code paths, by solving constraints. For each reached portion of the code, it outputs a test case covering that part of the program, giving concrete values for the input variables. In the particular example given, our symbolic execution engine can output the following test cases:
+We want to check if `error` is reachable, by using symbolic variables `a` and `b`, assigned to the program's variables `v1` and `v2`. In line 2 we have the constraint `v1 > 0` and so, the symbolic engine adds a constraint to the symbolic variable `a`: `a > 0` for the branch taken or conversely `a <= 0` for the branch not taken. It then continues the execution first trying with the first constraint and than with the second. Whenever a new path condition is reached, new constraints are added to the symbolic state, until that condition is no more satisfiable. The execution engine tries to cover all code paths, by solving those constraints. For each portion of the code reached, it outputs a test case covering that part of the program, providing concrete values for the input variables. In the particular example given, our symbolic execution engine can output the following test cases:
 
 * `v1 = 1`;
 * `v1 = -1`, `v2 = 0`.
 
 And this is enough to cover all the lines of code of the program.
 
-This approach is useful for testing, because it helps generating test cases for programs. It is often effective, and do not waste computational power of your brain. You know... tests are so difficult to do effectively!
+This approach is useful for testing because it helps generating test cases for programs. It is often effective, and do not waste computational power of your brain. You know... tests are so difficult to do effectively, and brain power is such a scarce resource!
 
 I do not want to elaborate too much on this topic because it is way too big to fit in this article. Moreover, we are not going to use symbolic execution engines for testing purpose. This just because we don't like use things in the way are intended :)
 
-However, I will point you to some good references in the last section. Here I can list a series of common strengths and weaknesses of those engines, just to give you a little bit of background:
+However, I will point you to some good references in the last section. Here I can list a series of common strengths and weaknesses of symbolic execution, just to give you a little bit of background:
 
+Strengths:
 * when a test case fails, the program is proven to be incorrect;
-* automatic test cases catch errors that often are overlooked in manual written test cases (this is from (KLEE paper)[http://www.doc.ic.ac.uk/~cristic/papers/klee-osdi-08.pdf]);
-* when it works is cool :) (and this is from (Jérémy)[https://twitter.com/__x86]);
+* automatic test cases catch errors that often are overlooked in manual written test cases (this is from [KLEE paper](http://www.doc.ic.ac.uk/~cristic/papers/klee-osdi-08.pdf));
+* when it works is cool :) (and this is from [Jérémy](https://twitter.com/__x86));
+
+Weaknesses:
 * when no tests fail we are not sure everything is correct, because no correctness proof is given; static analysis can do that when it works (and often does not!);
 * complete coverage for non trivial programs is often impossible, due to path explosion or constraint solver timeout;
 * scaling is difficult, and execution time can suffer;
@@ -877,4 +880,6 @@ Here are reported some useful links that can be useful for you to deepen some of
 * [KLEE main site](http://klee.github.io/) in which you can find documentation, examples and some news;
 * My [Docker image of KLEE](https://registry.hub.docker.com/u/mbrt/klee/) that you can use as is if you want to avoid building KLEE from sources. It is an automated build (sources [here](https://github.com/mbrt/docker-klee)) so you can use it safely;
 * Tutorial on using KLEE onto [GNU Coreutils](http://www.gnu.org/software/coreutils/) is [here](http://klee.github.io/tutorials/testing-coreutils/) if you want to learn to use better KLEE for testing purposes.
-* The Feliam's article [The Symbolic Maze!](https://feliam.wordpress.com/2010/10/07/the-symbolic-maze/) that gave me insights on how to use KLEE for reversing purposes.
+* The Feliam's article [The Symbolic Maze!](https://feliam.wordpress.com/2010/10/07/the-symbolic-maze/) that gave me insights on how to use KLEE for reversing purposes;
+* [Symbolic execution and program testing](https://courses.engr.illinois.edu/cs477/king76symbolicexecution.pdf) of James C. King paper;
+* Slides from this [Harvard course](http://www.seas.harvard.edu/courses/cs252/2011sp/slides/Lec13-SymExec.pdf) are useful to visualize symbolic execution with nice figures and examples.
