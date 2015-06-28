@@ -113,8 +113,41 @@ The version check is done by making an HTTP request to a specific page that retu
 
 Anyway, this is the big picture of the registration validation functions, and this is pretty boring. Let's move on to the interesting part. You may notice that I provided code for the main procedure, but not for the helper functions like `get_license_type`, `compute_customer_number`, and so on. This is because I did not have to reverse them. They contains a lot of arithmetical and logical operations on registration data, and they are very difficult to understand. The good news is that we do not have to understand, we need only to reverse them!
 
+## Symbolic execution
+Symbolic execution is a way to analyze programs determining what inputs cause each branch of the program to execute. A symbolic execution engine substitutes inputs of the program (that could be files, standard input, network stream, etc.) with symbolic variables under its control. It than executes the program, tracking a symbolic state. When a branch of the program depends on some symbolic variable, a constraint solver is executed, and if possible forks the symbolic engine, by following each of the two paths, with their corresponding constraints. For example:
+
+```C
+int v1 = a, v2 = b; // symbolic variables
+if (v1 > 0)
+    v2 = 0;
+if (v2 == 0 && v1 <= 0)
+   error();
+```
+
+We want to check if `error` is reachable, by using symbolic variables `a` and `b`, assigned to variables of the program `v1` and `v2`. In line 2 we have the constraint `v1 > 0` and so, the symbolic engine adds a constraint to the symbolic variable `a`: `a > 0` for the branch taken or conversely `a <= 0` for the branch not taken. It then continues the execution first trying with the first constraint and than with the second. Whenever a new path condition is reached, new constraints are added to the symbolic state, until that condition is no more satisfiable. The execution engine tries to cover all code paths, by solving constraints. For each reached portion of the code, it outputs a test case covering that part of the program, giving concrete values for the input variables. In the particular example given, our symbolic execution engine can output the following test cases:
+
+* `v1 = 1`;
+* `v1 = -1`, `v2 = 0`.
+
+And this is enough to cover all the lines of code of the program.
+
+This approach is useful for testing, because it helps generating test cases for programs. It is often effective, and do not waste computational power of your brain. You know... tests are so difficult to do effectively!
+
+I do not want to elaborate too much on this topic because it is way too big to fit in this article. Moreover, we are not going to use symbolic execution engines for testing purpose. This just because we don't like use things in the way are intended :)
+
+However, I will point you to some good references in the last section. Here I can list a series of common strengths and weaknesses of those engines, just to give you a little bit of background:
+
+* when a test case fails, the program is proven to be incorrect;
+* automatic test cases catch errors that often are overlooked in manual written test cases (this is from (KLEE paper)[http://www.doc.ic.ac.uk/~cristic/papers/klee-osdi-08.pdf]);
+* when it works is cool :) (and this is from (Jérémy)[https://twitter.com/__x86]);
+* when no tests fail we are not sure everything is correct, because no correctness proof is given; static analysis can do that when it works (and often does not!);
+* complete coverage for non trivial programs is often impossible, due to path explosion or constraint solver timeout;
+* scaling is difficult, and execution time can suffer;
+* undefined behavior of CPU could lead to unexpected results;
+* ... and maybe there are a lot more remarks to add.
+
 ## KLEE
-KLEE is a symbolic virtual machine that operates on [LLVM](http://llvm.org/) byte code, used for software verification purposes. KLEE is capable to automatically generate tests achieving high code coverage. KLEE is also able to find memory errors such as out of bound array accesses and many other common errors. To do that, it needs an LLVM byte code version of the program, symbolic variables and (optionally) assertions. I have also prepared a [Docker image](https://registry.hub.docker.com/u/mbrt/klee/) with `clang` and `klee` already configured and ready to use. So, you have no excuses to not try it out! Take this example function:
+KLEE is a great example of a symbolic execution engine. It operates on [LLVM](http://llvm.org/) byte code, used for software verification purposes. KLEE is capable to automatically generate tests achieving high code coverage. KLEE is also able to find memory errors such as out of bound array accesses and many other common errors. To do that, it needs an LLVM byte code version of the program, symbolic variables and (optionally) assertions. I have also prepared a [Docker image](https://registry.hub.docker.com/u/mbrt/klee/) with `clang` and `klee` already configured and ready to use. So, you have no excuses to not try it out! Take this example function:
 
 ```C
 #define FALSE 0
