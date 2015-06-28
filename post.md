@@ -881,5 +881,5 @@ Here are reported some useful links that can be useful for you to deepen some of
 * My [Docker image of KLEE](https://registry.hub.docker.com/u/mbrt/klee/) that you can use as is if you want to avoid building KLEE from sources. It is an automated build (sources [here](https://github.com/mbrt/docker-klee)) so you can use it safely;
 * Tutorial on using KLEE onto [GNU Coreutils](http://www.gnu.org/software/coreutils/) is [here](http://klee.github.io/tutorials/testing-coreutils/) if you want to learn to use better KLEE for testing purposes.
 * The Feliam's article [The Symbolic Maze!](https://feliam.wordpress.com/2010/10/07/the-symbolic-maze/) that gave me insights on how to use KLEE for reversing purposes;
-* [Symbolic execution and program testing](https://courses.engr.illinois.edu/cs477/king76symbolicexecution.pdf) of James C. King paper;
+* The paper [Symbolic execution and program testing](https://courses.engr.illinois.edu/cs477/king76symbolicexecution.pdf) of James C. King gives you a nice intro on symbolic execution topic;
 * Slides from this [Harvard course](http://www.seas.harvard.edu/courses/cs252/2011sp/slides/Lec13-SymExec.pdf) are useful to visualize symbolic execution with nice figures and examples.
