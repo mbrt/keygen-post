@@ -114,17 +114,17 @@ The version check is done by making an HTTP request to a specific page that retu
 Anyway, this is the big picture of the registration validation functions, and this is pretty boring. Let's move on to the interesting part. You may notice that I provided code for the main procedure, but not for the helper functions like `get_license_type`, `compute_customer_number`, and so on. This is because I did not have to reverse them. They contains a lot of arithmetical and logical operations on registration data, and they are very difficult to understand. The good news is that we do not have to understand, we need only to reverse them!
 
 ## Symbolic execution
-Symbolic execution is a way to analyze programs determining what inputs cause each branch of the program to execute. A symbolic execution engine substitutes inputs of the program (that could be files, standard input, network stream, etc.) with symbolic variables under its control. It than executes the program, tracking a symbolic state. When a branch of the program depends on some symbolic variable, a constraint is added to that variable, in order to take, or not take that branch. Symbolic execution then follows each of the two paths, bringing forward the new constraints (if they are satisfiable). For example:
+Symbolic execution is a way to execute programs using symbolic variables instead of concrete values. A symbolic variable is used whenever a value can be controlled by user input (this can be done by hand or by using taint analysis), and could be a file, standard input, a network stream, etc. Symbolic execution translates the program's semantics into a logical formula. Each instruction cause that formula to be updated. By solving a formula for one path, we get concrete values for the variables. If those values are used in the program, the execution reaches that program point. Dynamic Symbolic Execution (DSE) builds the logical formula at runtime, step-by-step, following one path at a time. When a branch of the program is found during the execution, the engine transforms the condition into arithmetic operations. It then chooses the T (true) or F (false) branch and updates the formula with this new constraint (or its negation). At the end of a path, the engine can backtrack and select another path to execute. For example:
 
 ```C
-int v1 = a, v2 = b; // symbolic variables
+int v1 = SymVar_1, v2 = SymVar_2; // symbolic variables
 if (v1 > 0)
     v2 = 0;
 if (v2 == 0 && v1 <= 0)
    error();
 ```
 
-We want to check if `error` is reachable, by using symbolic variables `a` and `b`, assigned to the program's variables `v1` and `v2`. In line 2 we have the constraint `v1 > 0` and so, the symbolic engine adds a constraint to the symbolic variable `a`: `a > 0` for the branch taken or conversely `a <= 0` for the branch not taken. It then continues the execution first trying with the first constraint and than with the second. Whenever a new path condition is reached, new constraints are added to the symbolic state, until that condition is no more satisfiable. The execution engine tries to cover all code paths, by solving those constraints. For each portion of the code reached, it outputs a test case covering that part of the program, providing concrete values for the input variables. In the particular example given, our symbolic execution engine can output the following test cases:
+We want to check if `error` is reachable, by using symbolic variables `SymVar_1` and `SymVar_2`, assigned to the program's variables `v1` and `v2`. In line 2 we have the constraint `v1 > 0` and so, the symbolic engine adds a constraint to the symbolic variable `SymVar_1`: `SymVar_1 > 0` for the branch taken or conversely `SymVar_1 <= 0` for the branch not taken. It then continues the execution trying with the first constraint. Whenever a new path condition is reached, new constraints are added to the symbolic state, until that condition is no more satisfiable. In that case, the engine backtracks and replaces some constraints with their negation, in order to reach other code paths. The execution engine tries to cover all code paths, by solving those constraints and their negations. For each portion of the code reached, it outputs a test case covering that part of the program, providing concrete values for the input variables. In the particular example given, our symbolic execution engine can output the following test cases:
 
 * `v1 = 1`;
 * `v1 = -1`, `v2 = 0`.
@@ -140,7 +140,7 @@ However, I will point you to some good references in the last section. Here I ca
 Strengths:
 * when a test case fails, the program is proven to be incorrect;
 * automatic test cases catch errors that often are overlooked in manual written test cases (this is from [KLEE paper](http://www.doc.ic.ac.uk/~cristic/papers/klee-osdi-08.pdf));
-* when it works is cool :) (and this is from [Jérémy](https://twitter.com/__x86));
+* when it works it's cool :) (and this is from [Jérémy](https://twitter.com/__x86));
 
 Weaknesses:
 * when no tests fail we are not sure everything is correct, because no correctness proof is given; static analysis can do that when it works (and often does not!);
@@ -883,4 +883,6 @@ Here are reported some useful links that can be useful for you to deepen some of
 * Tutorial on using KLEE onto [GNU Coreutils](http://www.gnu.org/software/coreutils/) is [here](http://klee.github.io/tutorials/testing-coreutils/) if you want to learn to use better KLEE for testing purposes.
 * The Feliam's article [The Symbolic Maze!](https://feliam.wordpress.com/2010/10/07/the-symbolic-maze/) that gave me insights on how to use KLEE for reversing purposes;
 * The paper [Symbolic execution and program testing](https://courses.engr.illinois.edu/cs477/king76symbolicexecution.pdf) of James C. King gives you a nice intro on symbolic execution topic;
-* Slides from this [Harvard course](http://www.seas.harvard.edu/courses/cs252/2011sp/slides/Lec13-SymExec.pdf) are useful to visualize symbolic execution with nice figures and examples.
+* Slides from this [Harvard course](http://www.seas.harvard.edu/courses/cs252/2011sp/slides/Lec13-SymExec.pdf) are useful to visualize symbolic execution with nice figures and examples;
+* [Dynamic Binary Analysis and Instrumentation
+Covering a function using a DSE approach](http://shell-storm.org/talks/SecurityDay2015_dynamic_symbolic_execution_Jonathan_Salwan.pdf) by [Jonathan Salwan](https://twitter.com/jonathansalwan).
