@@ -144,6 +144,7 @@ Strengths:
 
 Weaknesses:
 * when no tests fail we are not sure everything is correct, because no correctness proof is given; static analysis can do that when it works (and often does not!);
+* covering all the paths is not enough, because a variable can hold different values in one path and only some of them cause a bug;
 * complete coverage for non trivial programs is often impossible, due to path explosion or constraint solver timeout;
 * scaling is difficult, and execution time can suffer;
 * undefined behavior of CPU could lead to unexpected results;
