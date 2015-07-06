@@ -870,13 +870,22 @@ Index;License;Mail;Customer
 ...
 ```
 
-Note that not all the serial numbers are solvable, but we are ok with that. We now have a bunch of solved registrations. We can put them in some simple GUI that exposes to the user one of them randomly.
+Note that not all the serial numbers are solvable, but we are OK with that. We now have a bunch of solved registrations. We can put them in some simple GUI that exposes to the user one of them randomly.
 
 That's all folks.
 
-## References
+## Conclusion
 
-Here are reported some useful links that can be useful for you to deepen some of the arguments touched here:
+That was a brief journey into the magic world of reversing and symbolic execution. We started with the dream to make a key generator for a real world application, and we've got a list of serial numbers to put in some nice GUI (maybe with some MIDI soundtrack playing in the background to make users crazy). But that was not our purpose. The path we followed is far more interesting than ruining programmer's life. So, just to recap, here are the main steps we followed to generate our serial numbers:
+
+1. reverse the skeleton of the serial number validation, understanding data and the most important functions, using a debugger, IDA, and all the reversing tools we can access;
+2. collect the functions, mark some strategic variable as symbolic and mark some strategic code path with an assert;
+3. ask KLEE to provide us the values for symbolic variables that make the assert to fail, and so to reach that code path;
+4. since the last step provides us only a single serial number, add an external input to the symbolic program, used as additional constraint, in order to get different values for symbolic variables reaching the assert.
+
+The last point can be seen as quite obscure, and I can admit that, but the idea is simple. Since KLEE's goal is to reach a path with some values for the symbolic variables, it is not interested in exploring all the possibilities for those values. We can force this exploration manually, by adding an additional constraint, and varying it from run to run, and get (hopefully) different correct values for our serial number.
+
+I hope you found this topic interesting. In the case, here are some links that can be useful for you to deepen some of the arguments touched in this post:
 
 * [KLEE main site](http://klee.github.io/) in which you can find documentation, examples and some news;
 * My [Docker image of KLEE](https://registry.hub.docker.com/u/mbrt/klee/) that you can use as is if you want to avoid building KLEE from sources. It is an automated build (sources [here](https://github.com/mbrt/docker-klee)) so you can use it safely;
