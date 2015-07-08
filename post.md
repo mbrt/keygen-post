@@ -1,5 +1,5 @@
 # Keygenning with KLEE
-In the past weeks I enjoyed working on reversing a software (don't ask me the name), to study how serial numbers are validated. The story the user has to follow is the same for many others: download the trial, pay, get the serial number, use it in the annoying nag screen to get the fully functional version.
+In the past weeks I enjoyed working on reversing a software (don't ask me the name), to study how serial numbers are validated. The story the user has to follow is pretty common: download the trial, pay, get the serial number, use it in the annoying nag screen to get the fully functional version of the software.
 
 Since my purpose is to not damage the company developing the software, I will not mention the name of the software, nor I will publish the final key generator in binary form, nor its source code. My goal is instead to study a real case of serial number validation, and to highlight its weaknesses.
 
@@ -9,17 +9,18 @@ In this post we are going to take a look at the steps I followed to reverse the 
 The software is an `x86` executable, with no anti-debugging, nor anti-reversing techniques. When started it presents a nag screen asking for a registration composed by: customer number, serial number and a mail address. This is a fairly common software.
 
 ## Tools of the trade
-First steps in the reversing are devoted to find all the interesting functions to analyze. To do this I used [IDA Pro](https://www.hex-rays.com/products/ida/) with Hex-Rays decompiler, and the [WinDbg](https://msdn.microsoft.com/en-us/library/windows/hardware/ff551063(v=vs.85).aspx) debugger. For the last part I used the [KLEE](http://klee.github.io/) symbolic virtual machine under Linux, the [gcc compiler](https://gcc.gnu.org/) and some bash scripting. The actual key generator was a simple [WPF](https://msdn.microsoft.com/en-us/library/ms754130%28v=vs.100%29.aspx) application.
+First steps in the reversing are devoted to find all the interesting functions to analyze. To do this I used [IDA Pro](https://www.hex-rays.com/products/ida/) with Hex-Rays decompiler, and the [WinDbg](https://msdn.microsoft.com/en-us/library/windows/hardware/ff551063(v=vs.85).aspx) debugger. For the last part I used [KLEE](http://klee.github.io/) symbolic virtual machine under Linux, [gcc compiler](https://gcc.gnu.org/) and some bash scripting. The actual key generator was a simple [WPF](https://msdn.microsoft.com/en-us/library/ms754130%28v=vs.100%29.aspx) application.
 
 Let me skip the first part, since it is not very interesting. You can find many other articles on the web that can guide you trough basic reversing techniques with IDA Pro. I only kept in mind some simple rules, while going forward:
-* always rename functions playing with interesting data, even if you don't know precisely what they do. A name like `license_validation_unknown_8` is always better than a default like `sub_46fa39`;
+
+* always rename functions that uses interesting data, even if you don't know precisely what they do. A name like `license_validation_unknown_8` is always better than a default like `sub_46fa39`;
 * similarly, rename data whenever you find it interesting;
 * change data types when you are sure they are wrong: use structs and arrays in case of aggregates;
 * follow cross references of data and functions to expand your collection;
 * validate your beliefs with the debugger if possible. For example, if you think a variable contains the serial, break with the debugger and see if it is the case.
 
 ## Big picture
-When I collected the most interesting functions, I tried to understand the high level flow and the simpler functions. Here are the main variables and types used in the validation process. As a note for the reader: most of them has been actually purged from uninteresting details.
+When I collected the most interesting functions, I tried to understand the high level flow and the simpler functions. Here are the main variables and types used in the validation process. As a note for the reader: most of them have been purged from uninteresting details, for the sake of simplicity.
 
 ```C
 enum {
@@ -76,7 +77,7 @@ enum result_t check_registration(int serial, int customer_num, const char* mail)
 
 The validation is divided in three main parts:
 * serial number must be valid by itself;
-* serial number, combined with mail address have to correspond to the actual customer number;
+* serial number, combined with mail address has to correspond to the actual customer number;
 * there has to be a correspondence between serial number and mail address, stored in a static table in the binary.
 
 The last point is a little bit unusual. Let me restate it in this way: whenever a customer buy the software, the customer table gets updated with its data and become available in the *next* version of the software (because it is embedded in the binary and not downloaded trough the internet). This explains the `VALID_IF_LAST_VERSION` check: if you buy the software today, the current version does not contain your data. You are still allowed to get a "pro" version until a new version is released. In that moment you are forced to update to that new version, so the software can verify your registration with the updated table. Here is a pseudo-code of that check:
@@ -111,7 +112,7 @@ case INVALID:
 
 The version check is done by making an HTTP request to a specific page that returns a page having only the last version number of the software. Don't ask me why the protection is not completely server side but involves static tables, version checks and things like that. I don't know!
 
-Anyway, this is the big picture of the registration validation functions, and this is pretty boring. Let's move on to the interesting part. You may notice that I provided code for the main procedure, but not for the helper functions like `get_license_type`, `compute_customer_number`, and so on. This is because I did not have to reverse them. They contains a lot of arithmetical and logical operations on registration data, and they are very difficult to understand. The good news is that we do not have to understand, we need only to reverse them!
+Anyway, this is the big picture of the registration validation functions, and this is pretty boring. Let's move on to the interesting part. You may notice that I provided code for the main procedure, but not for the helper functions like `get_license_type`, `compute_customer_number`, and so on. This is because I did not have to reverse them. They contains a lot of arithmetical and logical operations on registration data, and they are very difficult to understand. The good news is that we do not have to understand them, we need only to reverse them!
 
 ## Symbolic execution
 Symbolic execution is a way to execute programs using symbolic variables instead of concrete values. A symbolic variable is used whenever a value can be controlled by user input (this can be done by hand or determined by using taint analysis), and could be a file, standard input, a network stream, etc. Symbolic execution translates the program's semantics into a logical formula. Each instruction cause that formula to be updated. By solving a formula for one path, we get concrete values for the variables. If those values are used in the program, the execution reaches that program point. Dynamic Symbolic Execution (DSE) builds the logical formula at runtime, step-by-step, following one path at a time. When a branch of the program is found during the execution, the engine transforms the condition into arithmetic operations. It then chooses the T (true) or F (false) branch and updates the formula with this new constraint (or its negation). At the end of a path, the engine can backtrack and select another path to execute. For example:
@@ -124,7 +125,7 @@ if (v2 == 0 && v1 <= 0)
    error();
 ```
 
-We want to check if `error` is reachable, by using symbolic variables `SymVar_1` and `SymVar_2`, assigned to the program's variables `v1` and `v2`. In line 2 we have the condition `v1 > 0` and so, the symbolic engine adds a constraint `SymVar_1 > 0` for the branch taken or conversely `SymVar_1 <= 0` for the branch not taken. It then continues the execution trying with the first constraint. Whenever a new path condition is reached, new constraints are added to the symbolic state, until that condition is no more satisfiable. In that case, the engine backtracks and replaces some constraints with their negation, in order to reach other code paths. The execution engine tries to cover all code paths, by solving those constraints and their negations. For each portion of the code reached, the symbolic engine outputs a test case covering that part of the program, providing concrete values for the input variables. In the particular example given, the engine contunues the execution, and finds the condition `v2 == 0 && v1 <= 0` at line 4. The path formula becomes so: `SymVar_1 > 0 && (SymVar_2 == 0 && SymVar_1 <= 0)`, that is not satisfiable. The symbolic engine provides then values for the variables that satisfies the formula until that point. For example `SymVar_1 = 1` (and some random value for `SymVar_2`). The engine then backtrack to the previous branch and uses the negation of the constraint, that is `SymVar_1 <= 0`. It then adds the negation of the current constraint to cover the false branch, obtaining `SymVar_1 <= 0 && (SymVar_2 != 0 || SymVar_1 > 0)`. This is satisfiable with `SymVar_1 = -1` and `SymVar_2 = 0`. This concludes the analysis of the program paths, and our symbolic execution engine can output the following test cases:
+We want to check if `error` is reachable, by using symbolic variables `SymVar_1` and `SymVar_2`, assigned to the program's variables `v1` and `v2`. In line 2 we have the condition `v1 > 0` and so, the symbolic engine adds a constraint `SymVar_1 > 0` for the *true branch* or conversely `SymVar_1 <= 0` for the *false branch*. It then continues the execution trying with the first constraint. Whenever a new path condition is reached, new constraints are added to the symbolic state, until that condition is no more satisfiable. In that case, the engine backtracks and replaces some constraints with their negation, in order to reach other code paths. The execution engine tries to cover all code paths, by solving those constraints and their negations. For each portion of the code reached, the symbolic engine outputs a test case covering that part of the program, providing concrete values for the input variables. In the particular example given, the engine continues the execution, and finds the condition `v2 == 0 && v1 <= 0` at line 4. The path formula becomes so: `SymVar_1 > 0 && (SymVar_2 == 0 && SymVar_1 <= 0)`, that is not satisfiable. The symbolic engine provides then values for the variables that satisfies the previous formula (`SymVar_1 > 0`). For example `SymVar_1 = 1` and some random value for `SymVar_2`. The engine then backtrack to the previous branch and uses the negation of the constraint, that is `SymVar_1 <= 0`. It then adds the negation of the current constraint to cover the false branch, obtaining `SymVar_1 <= 0 && (SymVar_2 != 0 || SymVar_1 > 0)`. This is satisfiable with `SymVar_1 = -1` and `SymVar_2 = 0`. This concludes the analysis of the program paths, and our symbolic execution engine can output the following test cases:
 
 * `v1 = 1`;
 * `v1 = -1`, `v2 = 0`.
@@ -133,7 +134,7 @@ Those test cases are enough to cover all the paths of the program.
 
 This approach is useful for testing because it helps generating test cases. It is often effective, and it does not waste computational power of your brain. You know... tests are very difficult to do effectively, and brain power is such a scarce resource!
 
-I do not want to elaborate too much on this topic because it is way too big to fit in this article. Moreover, we are not going to use symbolic execution engines for testing purpose. This just because we don't like use things in the way they are intended :)
+I don't want to elaborate too much on this topic because it is way too big to fit in this post. Moreover, we are not going to use symbolic execution engines for testing purpose. This just because we don't like to use things in the way they are intended :)
 
 However, I will point you to some good references in the last section. Here I can list a series of common strengths and weaknesses of symbolic execution, just to give you a little bit of background:
 
@@ -143,15 +144,15 @@ Strengths:
 * when it works it's cool :) (and this is from [Jérémy](https://twitter.com/__x86));
 
 Weaknesses:
-* when no tests fail we are not sure everything is correct, because no correctness proof is given; static analysis can do that when it works (and often does not!);
+* when no tests fail we are not sure everything is correct, because no proof of correctness is given; static analysis can do that when it works (and often it does not!);
 * covering all the paths is not enough, because a variable can hold different values in one path and only some of them cause a bug;
 * complete coverage for non trivial programs is often impossible, due to path explosion or constraint solver timeout;
-* scaling is difficult, and execution time can suffer;
+* scaling is difficult, and execution time of the engine can suffer;
 * undefined behavior of CPU could lead to unexpected results;
 * ... and maybe there are a lot more remarks to add.
 
 ## KLEE
-KLEE is a great example of a symbolic execution engine. It operates on [LLVM](http://llvm.org/) byte code, used for software verification purposes. KLEE is capable to automatically generate tests achieving high code coverage. KLEE is also able to find memory errors such as out of bound array accesses and many other common errors. To do that, it needs an LLVM byte code version of the program, symbolic variables and (optionally) assertions. I have also prepared a [Docker image](https://registry.hub.docker.com/u/mbrt/klee/) with `clang` and `klee` already configured and ready to use. So, you have no excuses to not try it out! Take this example function:
+KLEE is a great example of a symbolic execution engine. It operates on [LLVM](http://llvm.org/) byte code, and it is used for software verification purposes. KLEE is capable to automatically generate test cases achieving high code coverage. KLEE is also able to find memory errors such as out of bound array accesses and many other common errors. To do that, it needs an LLVM byte code version of the program, symbolic variables and (optionally) assertions. I have also prepared a [Docker image](https://registry.hub.docker.com/u/mbrt/klee/) with `clang` and `klee` already configured and ready to use. So, you have no excuses to not try it out! Take this example function:
 
 ```C
 #define FALSE 0
@@ -180,7 +181,7 @@ int main() {
 }
 ```
 
-In there we have a symbolic variable used as input for the function to be tested. We can also modify it to include an assertion:
+In `main` we have a symbolic variable used as input for the function to be tested. We can also modify it to include an assertion:
 
 ```C
 BOOL check_arg(int a) {
@@ -193,7 +194,7 @@ BOOL check_arg(int a) {
 }
 ```
 
-We can now use `clang` to compile the program to LLVM intermediate representation and run the test generation with the `klee` command:
+We can now use `clang` to compile the program to the LLVM byte code and run the test generation with the `klee` command:
 
 ```
 clang -emit-llvm -g -o test.ll -c test.c
@@ -210,7 +211,7 @@ KLEE: done: completed paths = 2
 KLEE: done: generated tests = 2
 ```
 
-KLEE will generate test cases for the `input` variable, trying to cover all the possible execution paths and to make the provided assertions to fail (if any given). In this case we have two execution paths and two generated test cases, covering them. Test cases are in the output directory (in this case `/work/klee-out-0`). The soft link `klee-last` is also provided for convenience, pointing to the last output directory. A bunch of files were created, including the two test cases named `test000001.ktest` and `test000002.ktest`. These are binary files, which can be examined with `ktest-tool` utility. Let's try it:
+KLEE will generate test cases for the `input` variable, trying to cover all the possible execution paths and to make the provided assertions to fail (if any given). In this case we have two execution paths and two generated test cases, covering them. Test cases are in the output directory (in this case `/work/klee-out-0`). The soft link `klee-last` is also provided for convenience, pointing to the last output directory. Inside that directory a bunch of files were created, including the two test cases named `test000001.ktest` and `test000002.ktest`. These are binary files, which can be examined with the `ktest-tool` utility. Let's try it:
 
 ```
 $ ktest-tool --write-ints klee-last/test000001.ktest 
@@ -276,7 +277,7 @@ ktest file : 'klee-last/test000002.ktest'
 object    0: data: 10
 ```
 
-As we had expected, the assertion fails when `input` value is 10. So, as we now have three execution paths, we also have three test cases, and the whole program gets covered. KLEE provides also the possibility to replay the tests with the real program, but we are not interested in it now. You can see an usage example at this [KLEE tutorial](http://klee.github.io/tutorials/testing-function/#replaying-a-test-case).
+As we had expected, the assertion fails when `input` value is 10. So, as we now have three execution paths, we also have three test cases, and the whole program gets covered. KLEE provides also the possibility to replay the tests with the real program, but we are not interested in it now. You can see an usage example in this [KLEE tutorial](http://klee.github.io/tutorials/testing-function/#replaying-a-test-case).
 
 KLEE abilities to find execution paths of an application are very good. According to the [OSDI 2008 paper](http://llvm.org/pubs/2008-12-OSDI-KLEE.html), KLEE has been successfully used to test all 89 stand-alone programs in GNU COREUTILS and the equivalent busybox port, finding previously undiscovered bugs, errors and inconsistencies. The achieved code coverage were more than 90% per tool. Pretty awesome!
 
@@ -366,7 +367,7 @@ $ klee atoi.ll
 KLEE: output directory is "/work/klee-out-4"
 KLEE: WARNING: undefined reference to function: atoi
 KLEE: WARNING ONCE: calling external: atoi(0)
-KLEE: ERROR: /work/prova.c:5: failed external call: atoi
+KLEE: ERROR: /work/atoi.c:5: failed external call: atoi
 KLEE: NOTE: now ignoring this error at this location
 ...
 ```
@@ -417,13 +418,13 @@ int main(int argc, char* argv[]) {
 We could also have written `klee_assert(result != 42)`, and get the same result. No matter what solution we adopt, now we have to run KLEE as before:
 
 ```
-$ clang -emit-llvm -g -o atoi.ll -c atoi.c
-$ klee --optimize --libc=uclibc --posix-runtime atoi.ll --sym-args 0 1 3
+$ clang -emit-llvm -g -o atoi2.ll -c atoi2.c
+$ klee --optimize --libc=uclibc --posix-runtime atoi2.ll --sym-args 0 1 3
 KLEE: NOTE: Using klee-uclibc : /usr/local/lib/klee/runtime/klee-uclibc.bca
 KLEE: NOTE: Using model: /usr/local/lib/klee/runtime/libkleeRuntimePOSIX.bca
 KLEE: output directory is "/work/klee-out-6"
 KLEE: WARNING ONCE: calling external: syscall(16, 0, 21505, 53243904)
-KLEE: ERROR: /work/atoi.c:8: ASSERTION FAIL: 0
+KLEE: ERROR: /work/atoi2.c:8: ASSERTION FAIL: 0
 KLEE: NOTE: now ignoring this error at this location
 
 KLEE: done: total instructions = 5962
@@ -489,7 +490,7 @@ int main(int argc, char* argv[]) {
 
 Super simple. Copy and paste everything, make the inputs symbolic and assert a certain result (negated, of course).
 
-No! That's not so simple. This is actually the most difficult part of the game. First of all, what do we want to copy? We don't have the source code. In my case I used Hex-Rays decompiler, so maybe I have cheated. When you decompile, however, you don't get immediately a compilable C source code, since there could be dependencies between functions, global variables, and specific Hex-Rays types. For this latter problem I've prepared a the `ida_defs.h` header, providing defines coming from IDA and from Windows headers.
+No! That's not so simple. This is actually the most difficult part of the game. First of all, what do we want to copy? We don't have the source code. In my case I used Hex-Rays decompiler, so maybe I have cheated. When you decompile, however, you don't get immediately a compilable C source code, since there could be dependencies between functions, global variables, and specific Hex-Rays types. For this latter problem I've prepared a [`ida_defs.h`](https://github.com/mbrt/keygen-post/blob/master/src/ida_defs.h) header, providing defines coming from IDA and from Windows headers.
 
 But what to copy? The high level picture of the validation algorithm I have presented is an ideal one. The `check_registration` function is actually a big set of auxiliary functions and data, very tightened with other parts of the program. Even if we now know the most interesting functions, we need to know how much of the related code, is useful or not. We cannot throw everything in our key generator, since every function brings itself other related data and functions. In this way we will end up having the whole program in it. We need to minimize the code KLEE has to analyze, otherwise it will be too difficult to have its job done.
 
@@ -520,9 +521,9 @@ int16_t hashData[1000000] =
 
 But, cutting out code is not the only problem I've found in this step. External constraints must be carefully considered. For example the [time](http://www.cplusplus.com/reference/ctime/time/) function can be handled by KLEE itself. KLEE tries to generate useful values even from that function. This is good if we want to test bugs related to a strange current time, but in our case, since the code will be executed by the program *at a particular time*, we are only interested in the value provided at that time. We don't want KLEE traits this function as symbolic; we only want the right time value. To solve that problem, I have replaced all the calls to `time` to a `my_time` function, returning a fixed value, defined in the source code.
 
-Another problem comes from the extraction of the functions from their outer context. Often code is written with *implicit conventions* in mind. These are not self-evident in the code because checks are avoided. A trivial example is the null terminator and valid ASCII characters in strings. KLEE do not assumes those constraints, but the validation code do. This is because GUI provides only valid strings. A less trivial example is that the mail address is always passed lowercase from the GUI to the lower level application logic. This is not self-evident if you do not follow every step from the user input to the actual computations with the data.
+Another problem comes from the extraction of the functions from their outer context. Often code is written with *implicit conventions* in mind. These are not self-evident in the code because checks are avoided. A trivial example is the null terminator and valid ASCII characters in strings. KLEE do not assumes those constraints, but the validation code do. This is because the GUI provides only valid strings. A less trivial example is that the mail address is always passed lowercase from the GUI to the lower level application logic. This is not self-evident if you do not follow every step from the user input to the actual computations with the data.
 
-The solution to this latter problem is to provide KLEE those constraints:
+The solution to this latter problem is to provide those constraints to KLEE:
 
 ```C
 char mail[10];
@@ -561,8 +562,6 @@ We have pretended too much from the tool. It's time to use the brain and ease it
 Let's decompose the big picture of the registration check presented before piece by piece. We will try to solve it bit by bit, to reduce the solution space and so, the complexity.
 
 Recall that the algorithm is composed by three main conditions:
-
-The validation is divided in three main parts:
 
 * serial number must be valid by itself;
 * serial number, combined with mail address have to correspond to the actual customer number;
@@ -652,7 +651,7 @@ int check_mail(char* mail, int index) {
 }
 ```
 
-The `check_mail` function needs the index in the table as secondary input, so it is not completely independent from the other check function. However, `check_mail` can be incorporated by our successful symbolic solver used before:
+The `check_mail` function needs the index in the table as secondary input, so it is not completely independent from the other check function. However, `check_mail` can be incorporated by our successful test program used before:
 
 ```C
 // ...
@@ -688,7 +687,7 @@ object    1: data: 120300641
 ...
 ```
 
-For those who are wondering if `get_index_in_mail_table` could return a negative index, and so possibly crash the program I can answer that they are not alone. [@0vercl0k](https://twitter.com/0vercl0k) made me the same question, and unfortunately I have to answer a no. I tried, because I am a lazy ass, by changing the assertion above to `klee_assert(index < 0)`, but it was not triggered by KLEE. I then manually checked the function's code and I saw a beautiful `if (result < 0) result = 0`. So, the answer is no! You don't have found a vulnerability in the application, but keep searching :)
+For those who are wondering if `get_index_in_mail_table` could return a negative index, and so possibly crash the program I can answer that they are not alone. [@0vercl0k](https://twitter.com/0vercl0k) made me the same question, and unfortunately I have to answer a no. I tried, because I am a lazy ass, by changing the assertion above to `klee_assert(index < 0)`, but it was not triggered by KLEE. I then manually checked the function's code and I saw a beautiful `if (result < 0) result = 0`. So, the answer is no! You have not found a vulnerability in the application :(
 
 For the `check_mail` solution we have to provide the index of a serial, but wait... we have it! We have now a serial, so, computing the index of the table is simple as executing this:
 
@@ -744,7 +743,7 @@ object    1: data: 'yrwt\x00\x00\x00\x00\x00\x00'
 ...
 ```
 
-Ok, the mail found by KLEE is "yrwt". This is not a mail, of course, but in the code there is not a proper validation imposing the presence "@" and "." chars, so we are fine with it :)
+OK, the mail found by KLEE is "yrwt". This is not a mail, of course, but in the code there is not a proper validation imposing the presence of '@' and '.' chars, so we are fine with it :)
 
 The last piece of the puzzle we need is the customer number. Here is the check:
 
@@ -778,7 +777,7 @@ $ ./customer 120300641 yrwt
 1175211979
 ```
 
-Yeah! And if we try those numbers and mail address onto the real program, we are now ligit and registered users :)
+Yeah! And if we try those numbers and mail address onto the real program, we are now legit and registered users :)
 
 ## Want more keys?
 
@@ -786,7 +785,7 @@ We have just found one key, and that's cool, but what about making a keygen? KLE
 
 To solve the problem we have to think about what variables we can move around to get different valid serial numbers to start with, and with them solve related mail addresses and compute a customer number.
 
-We have to add constraints to the serial generation, so that every run we can run a slightly different version of the program and get a different serial number. The simplest thing to do is to constraint `get_index_in_mail_table` to return an index inside a proper subset of the range [0, `HEADER_SIZE`] used before. For example we can divide it in equal chunks of size 5 and run the whole thing for every chunk.
+We have to add constraints to the serial generation, so that every time we can run a slightly different version of the program and get a different serial number. The simplest thing to do is to constraint `get_index_in_mail_table` to return an index inside a proper subset of the range [0, `HEADER_SIZE`] used before. For example we can divide it in equal chunks of size 5 and run the whole thing for every chunk.
 
 This is the modified version of the serial generation:
 
@@ -876,14 +875,16 @@ That's all folks.
 
 ## Conclusion
 
-That was a brief journey into the magic world of reversing and symbolic execution. We started with the dream to make a key generator for a real world application, and we've got a list of serial numbers to put in some nice GUI (maybe with some MIDI soundtrack playing in the background to make users crazy). But that was not our purpose. The path we followed is far more interesting than ruining programmer's life. So, just to recap, here are the main steps we followed to generate our serial numbers:
+This was a brief journey into the magic world of reversing and symbolic execution. We started with the dream to make a key generator for a real world application, and we've got a list of serial numbers to put in some nice GUI (maybe with some MIDI soundtrack playing in the background to make users crazy). But this was not our purpose. The path we followed is far more interesting than ruining programmer's life. So, just to recap, here are the main steps we followed to generate our serial numbers:
 
-1. reverse the skeleton of the serial number validation, understanding data and the most important functions, using a debugger, IDA, and all the reversing tools we can access;
+1. reverse the skeleton of the serial number validation procedure, understanding data and the most important functions, using a debugger, IDA, and all the reversing tools we can access;
 2. collect the functions, mark some strategic variable as symbolic and mark some strategic code path with an assert;
 3. ask KLEE to provide us the values for symbolic variables that make the assert to fail, and so to reach that code path;
-4. since the last step provides us only a single serial number, add an external input to the symbolic program, used as additional constraint, in order to get different values for symbolic variables reaching the assert.
+4. since the last step provides us only a single serial number, add an external input to the symbolic program, using it as additional constraint, in order to get different values for symbolic variables reaching the assert.
 
-The last point can be seen as quite obscure, and I can admit that, but the idea is simple. Since KLEE's goal is to reach a path with some values for the symbolic variables, it is not interested in exploring all the possibilities for those values. We can force this exploration manually, by adding an additional constraint, and varying it from run to run, and get (hopefully) different correct values for our serial number.
+The last point can be seen as quite obscure, I can admit that, but the idea is simple. Since KLEE's goal is to reach a path with some values for the symbolic variables, it is not interested in exploring all the possibilities for those values. We can force this exploration manually, by adding an additional constraint, and varying a parameter from run to run, and get (hopefully) different correct values for our serial number.
+
+I would like to thank [@0vercl0k](https://twitter.com/0vercl0k), [@jonathansalwan](https://twitter.com/jonathansalwan) and [@__x86](https://twitter.com/__x86) for their careful proofreading and good remarks!
 
 I hope you found this topic interesting. In the case, here are some links that can be useful for you to deepen some of the arguments touched in this post:
 
@@ -895,3 +896,5 @@ I hope you found this topic interesting. In the case, here are some links that c
 * Slides from this [Harvard course](http://www.seas.harvard.edu/courses/cs252/2011sp/slides/Lec13-SymExec.pdf) are useful to visualize symbolic execution with nice figures and examples;
 * [Dynamic Binary Analysis and Instrumentation
 Covering a function using a DSE approach](http://shell-storm.org/talks/SecurityDay2015_dynamic_symbolic_execution_Jonathan_Salwan.pdf) by [Jonathan Salwan](https://twitter.com/jonathansalwan).
+
+Cheers, [@brt_device](https://twitter.com/brt_device).
