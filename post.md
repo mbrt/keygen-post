@@ -878,9 +878,10 @@ That's all folks.
 This was a brief journey into the magic world of reversing and symbolic execution. We started with the dream to make a key generator for a real world application, and we've got a list of serial numbers to put in some nice GUI (maybe with some MIDI soundtrack playing in the background to make users crazy). But this was not our purpose. The path we followed is far more interesting than ruining programmer's life. So, just to recap, here are the main steps we followed to generate our serial numbers:
 
 1. reverse the skeleton of the serial number validation procedure, understanding data and the most important functions, using a debugger, IDA, and all the reversing tools we can access;
-2. collect the functions, mark some strategic variable as symbolic and mark some strategic code path with an assert;
-3. ask KLEE to provide us the values for symbolic variables that make the assert to fail, and so to reach that code path;
-4. since the last step provides us only a single serial number, add an external input to the symbolic program, using it as additional constraint, in order to get different values for symbolic variables reaching the assert.
+2. collect the functions and produce a C version of them (this could be quite difficult, unless you have access to HEX-Rays decompiler or similar tool);
+3. mark some strategic variable as symbolic and mark some strategic code path with an assert;
+4. ask KLEE to provide us the values for symbolic variables that make the assert to fail, and so to reach that code path;
+5. since the last step provides us only a single serial number, add an external input to the symbolic program, using it as additional constraint, in order to get different values for symbolic variables reaching the assert.
 
 The last point can be seen as quite obscure, I can admit that, but the idea is simple. Since KLEE's goal is to reach a path with some values for the symbolic variables, it is not interested in exploring all the possibilities for those values. We can force this exploration manually, by adding an additional constraint, and varying a parameter from run to run, and get (hopefully) different correct values for our serial number.
 
