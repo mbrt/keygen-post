@@ -897,4 +897,6 @@ I hope you found this topic interesting. In the case, here are some links that c
 * [Dynamic Binary Analysis and Instrumentation
 Covering a function using a DSE approach](http://shell-storm.org/talks/SecurityDay2015_dynamic_symbolic_execution_Jonathan_Salwan.pdf) by [Jonathan Salwan](https://twitter.com/jonathansalwan).
 
+Source code, examples and scripts used to produce this blog post are published in this [GitHub repo](https://github.com/mbrt/keygen-post).
+
 Cheers, [@brt_device](https://twitter.com/brt_device).
