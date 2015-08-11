@@ -335,14 +335,14 @@ args       : ['magic.ll']
 num objects: 1
 object    0: name: 'input'
 object    0: size: 4
-object    0: data: -154
+object    0: data: -254
 ```
 
-The answer is -154. Let's test it:
+The answer is -254. Let's test it:
 
 ```
 $ gcc magic.c
-$ ./a.out -154
+$ ./a.out -254
 You win!
 ```
 
