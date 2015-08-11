@@ -83,7 +83,7 @@ The validation is divided in three main parts:
 The last point is a little bit unusual. Let me restate it in this way: whenever a customer buy the software, the customer table gets updated with its data and become available in the *next* version of the software (because it is embedded in the binary and not downloaded trough the internet). This explains the `VALID_IF_LAST_VERSION` check: if you buy the software today, the current version does not contain your data. You are still allowed to get a "pro" version until a new version is released. In that moment you are forced to update to that new version, so the software can verify your registration with the updated table. Here is a pseudo-code of that check:
 
 ```C
-switch (check_registration(serial, customer, mail) {
+switch (check_registration(serial, customer, mail)) {
 case VALID:
     // the registration is OK! activate functionalities
     activate_pro_functionality();
